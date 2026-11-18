@@ -8,6 +8,7 @@ import '../../app/theme/app_theme.dart';
 import '../../core/domain/currency.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import 'app_footer.dart';
+import 'encryption_toggle.dart';
 
 const _aboutText = 'About';
 
@@ -77,6 +78,7 @@ class _Header extends StatelessWidget implements PreferredSizeWidget {
         children: [
           const AppLogo(),
           const Spacer(),
+          const EncryptionToggle(),
           if (showAboutLink)
             TextButton(onPressed: () => context.push(Routes.about), child: const Text(_aboutText)),
           const _AccountMenu(),

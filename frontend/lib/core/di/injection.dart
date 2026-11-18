@@ -20,6 +20,8 @@ import '../../features/projection/presentation/bloc/projection_bloc.dart';
 import '../config/app_config.dart';
 import '../../shared/connectivity/connectivity_cubit.dart';
 import '../network/api_client.dart';
+import '../security/encryption_settings.dart';
+import '../security/transport_key_source.dart';
 import '../network/connectivity_service.dart';
 import '../network/dio_client.dart';
 import '../network/session_events.dart';
@@ -33,10 +35,20 @@ Future<void> configureDependencies() async {
   sl
     // Core
     ..registerSingleton(TokenStorage(prefs))
+    ..registerSingleton(EncryptionSettings(prefs))
+    ..registerLazySingleton(() => TransportKeySource(AppConfig.apiBaseUrl))
     ..registerSingleton(SessionEvents())
     ..registerLazySingleton(ConnectivityService.new)
     ..registerLazySingleton(
-      () => ApiClient(buildDio(baseUrl: AppConfig.apiBaseUrl, tokens: sl(), session: sl())),
+      () => ApiClient(
+        buildDio(
+          baseUrl: AppConfig.apiBaseUrl,
+          tokens: sl(),
+          session: sl(),
+          encryption: sl(),
+          transportKeys: sl(),
+        ),
+      ),
     )
     // Data
     ..registerLazySingleton(() => AuthRemoteDataSource(sl()))

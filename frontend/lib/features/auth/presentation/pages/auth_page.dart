@@ -7,6 +7,7 @@ import '../../../../app/theme/app_theme.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../shared/widgets/app_shell.dart';
 import '../../../../shared/widgets/app_footer.dart';
+import '../../../../shared/widgets/encryption_toggle.dart';
 import '../../../../shared/widgets/gold_button.dart';
 import '../../../../shared/widgets/world_network_background.dart';
 import '../../../../shared/widgets/state_views.dart';
@@ -118,6 +119,7 @@ class _AuthPageState extends State<AuthPage> {
             children: [
               const AppLogo(),
               const Spacer(),
+              const EncryptionToggle(),
               TextButton(
                 onPressed: () => context.push(Routes.about),
                 child: const Text(_aboutText),
