@@ -16,6 +16,42 @@ import '../bloc/projection_bloc.dart';
 import '../widgets/growth_chart.dart';
 import '../widgets/plan_tables.dart';
 
+const _goalDeletedText = 'Goal deleted.';
+const _myGoalsText = 'My goals';
+const _calculatingYourPlanText = 'Calculating your plan';
+const _weCouldntCalculateYourText = 'We couldn’t calculate your plan.';
+const _yourGoalIsSavedText = 'Your goal is saved — try again in a moment.';
+const _itWillDisappearFromText = 'It will disappear from your goals. Its history is kept.';
+const _cancelText = 'Cancel';
+const _deleteText = 'Delete';
+const _editGoalText = 'Edit goal';
+const _inflationText = 'Inflation';
+const _yourGoalInTodaysText = 'Your goal in today’s money';
+const _howYourMoneyGrowsText = 'How your money grows, year by year';
+const _compareTheTwoWaysText = 'Compare the two ways to invest';
+const _howWeWorkThisText = 'How we work this out';
+const _yourMonthlyPlanText = 'Your monthly plan';
+const _goodNewsText = 'Good news:';
+const _theMoneyYouVeText =
+    'the money you’ve already invested is expected to reach this goal on its own.';
+const _monthText = ' / month';
+const _yourNumbersStepByText = 'Your numbers, step by step';
+
+// Copy
+const _levelLabel = 'Same amount every month';
+const _assumptionsNote = 'Return and inflation are illustrative assumptions, not guarantees.';
+const _sameEveryMonthText = 'Same every month';
+const _investEveryMonthText = 'Invest every month';
+const _startWithText = 'Start with';
+const _youPutInText = 'You put in';
+const _growthFromReturnsText = 'Growth from returns';
+const _sipSystematicInvestmentPlanText = 'SIP (Systematic Investment Plan)';
+const _aFixedAmountInvestedText =
+    'A fixed amount invested in a mutual fund every month. We assume it goes in on the first day of each month.';
+const _expectedReturnText = 'Expected return';
+const _stepUpText = 'Step-up';
+const _inflationAndTodaysMoneyText = 'Inflation and today’s money';
+
 class GoalPlanPage extends StatelessWidget {
   const GoalPlanPage({super.key, required this.goalId});
 
@@ -30,7 +66,7 @@ class GoalPlanPage extends StatelessWidget {
           if (state is GoalDeleted) {
             ScaffoldMessenger.of(
               context,
-            ).showSnackBar(const SnackBar(content: Text('Goal deleted.')));
+            ).showSnackBar(const SnackBar(content: Text(_goalDeletedText)));
             context.pop();
           }
           if (state case ProjectionLoaded(deleteFailure: final failure?)) {
@@ -54,29 +90,29 @@ class _GoalPlanView extends StatelessWidget {
     return AppShell(
       extendedDisclaimer: true,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: [
           Align(
-            alignment: Alignment.centerLeft,
+            alignment: .centerLeft,
             child: TextButton.icon(
               onPressed: () => context.canPop() ? context.pop() : context.go(Routes.goals),
               icon: const Icon(Icons.arrow_back, size: 16),
-              label: const Text('My goals'),
+              label: const Text(_myGoalsText),
             ),
           ),
           const SizedBox(height: 8),
           switch (state) {
             ProjectionLoading(:final isSlow) => LoadingView(
-              label: 'Calculating your plan',
+              label: _calculatingYourPlanText,
               isSlow: isSlow,
               skeleton: const Column(
                 children: [SkeletonBox(height: 120), SkeletonBox(height: 300)],
               ),
             ),
             ProjectionError(:final failure) => ErrorView(
-              title: 'We couldn’t calculate your plan.',
+              title: _weCouldntCalculateYourText,
               failure: failure,
-              hint: 'Your goal is saved — try again in a moment.',
+              hint: _yourGoalIsSavedText,
               onRetry: () => context.read<ProjectionBloc>().add(ProjectionRequested(goalId)),
             ),
             GoalDeleted() => const SizedBox.shrink(),
@@ -98,6 +134,13 @@ class _Plan extends StatelessWidget {
   Currency get c => goal.currency;
   double get target => Scaled.toDouble(goal.targetAmount);
   String get stepPct => Scaled.formatCompact(goal.annualStepUpBp);
+  bool get hasStepUp => goal.annualStepUpBp > 0;
+
+  String? get _otherLabel => !hasStepUp
+      ? null
+      : state.mode == PlanMode.level
+      ? 'With $stepPct% yearly increase'
+      : _sameEveryMonthText;
 
   Future<void> _edit(BuildContext context) async {
     final bloc = context.read<ProjectionBloc>();
@@ -111,13 +154,16 @@ class _Plan extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Delete “${goal.name}”?'),
-        content: const Text('It will disappear from your goals. Its history is kept.'),
+        content: const Text(_itWillDisappearFromText),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text(_cancelText),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: const Text(_deleteText),
           ),
         ],
       ),
@@ -131,15 +177,15 @@ class _Plan extends StatelessWidget {
     final goalYear = goal.targetDate.year;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: [
         Wrap(
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.center,
+          alignment: .spaceBetween,
+          crossAxisAlignment: .center,
           runSpacing: 12,
           children: [
             Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: .start,
               children: [
                 Text(goal.name, style: const TextStyle(fontSize: 32)),
                 Text(
@@ -155,12 +201,12 @@ class _Plan extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: () => _edit(context),
                   icon: const Icon(Icons.edit_outlined, size: 18),
-                  label: const Text('Edit goal'),
+                  label: const Text(_editGoalText),
                 ),
                 OutlinedButton.icon(
                   onPressed: state.deleting ? null : () => _confirmDelete(context),
                   icon: const Icon(Icons.delete_outline, size: 18),
-                  label: const Text('Delete'),
+                  label: const Text(_deleteText),
                   style: OutlinedButton.styleFrom(foregroundColor: AppColors.danger),
                 ),
               ],
@@ -177,14 +223,11 @@ class _Plan extends StatelessWidget {
               child: _Breakdown(plan: state.selectedPlan, currency: c),
             ),
             _Card(
-              title: 'Inflation',
+              title: _inflationText,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: .start,
                 children: [
-                  const Text(
-                    'Your goal in today’s money',
-                    style: TextStyle(color: AppColors.text2),
-                  ),
+                  const Text(_yourGoalInTodaysText, style: TextStyle(color: AppColors.text2)),
                   Text(MoneyFormatter.short(p.todayValue, c), style: const TextStyle(fontSize: 28)),
                   Text(
                     'At ${Scaled.formatCompact(goal.inflationBp)}% inflation a year, $finalShort in $goalYear '
@@ -198,38 +241,41 @@ class _Plan extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         _Card(
-          title: 'How your money grows, year by year',
+          title: _howYourMoneyGrowsText,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: .stretch,
             children: [
-              ChartLegend(stepUpPct: stepPct, goalLabel: finalShort),
+              ChartLegend(goalLabel: finalShort, otherLabel: _otherLabel),
               const SizedBox(height: 16),
               GrowthChart(
-                projection: p,
+                plan: state.selectedPlan,
+                otherPlan: hasStepUp ? (state.mode == PlanMode.level ? p.stepUp : p.level) : null,
                 corpus: Scaled.toDouble(goal.currentCorpus),
                 target: target,
                 currency: c,
+                startYear: p.asOf.year,
               ),
               const SizedBox(height: 24),
-              Text(
-                state.mode == PlanMode.level
-                    ? 'Same amount every month'
-                    : 'Increasing $stepPct% every year',
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
+              if (hasStepUp)
+                Text(
+                  state.mode == PlanMode.level ? _levelLabel : 'Increasing $stepPct% every year',
+                  style: const TextStyle(fontWeight: .w600),
+                ),
               YearlyTable(plan: state.selectedPlan, currency: c),
             ],
           ),
         ),
+        if (hasStepUp) ...[
+          const SizedBox(height: 16),
+          _Card(
+            title: _compareTheTwoWaysText,
+            subtitle: 'Both reach $finalShort by $goalYear.',
+            child: ComparisonTable(projection: p, currency: c, stepUpPct: stepPct),
+          ),
+        ],
         const SizedBox(height: 16),
         _Card(
-          title: 'Compare the two ways to invest',
-          subtitle: 'Both reach $finalShort by $goalYear.',
-          child: ComparisonTable(projection: p, currency: c, stepUpPct: stepPct),
-        ),
-        const SizedBox(height: 16),
-        _Card(
-          title: 'How we work this out',
+          title: _howWeWorkThisText,
           child: _Explainer(goal: goal, projection: p),
         ),
       ],
@@ -251,38 +297,41 @@ class _Hero extends StatelessWidget {
 
     return Container(
       color: AppColors.layer,
-      padding: const EdgeInsets.all(24),
+      padding: const .all(24),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: [
-          const Text('Your monthly plan', style: TextStyle(color: AppColors.text2)),
+          const Text(_yourMonthlyPlanText, style: TextStyle(color: AppColors.text2)),
           const SizedBox(height: 12),
-          SegmentedButton<PlanMode>(
-            showSelectedIcon: false,
-            style: SegmentedButton.styleFrom(
-              shape: const RoundedRectangleBorder(),
-              selectedBackgroundColor: AppColors.gold,
-              selectedForegroundColor: AppColors.onGold,
+          if (state.goal.annualStepUpBp > 0) ...[
+            SegmentedButton<PlanMode>(
+              showSelectedIcon: false,
+              style: SegmentedButton.styleFrom(
+                shape: const RoundedRectangleBorder(),
+                selectedBackgroundColor: AppColors.gold,
+                selectedForegroundColor: AppColors.onGold,
+              ),
+              segments: [
+                const ButtonSegment(value: PlanMode.level, label: Text(_levelLabel)),
+                ButtonSegment(value: PlanMode.stepUp, label: Text('Increase $stepPct% every year')),
+              ],
+              selected: {state.mode},
+              onSelectionChanged: (s) =>
+                  context.read<ProjectionBloc>().add(PlanModeToggled(s.first)),
             ),
-            segments: [
-              const ButtonSegment(value: PlanMode.level, label: Text('Same amount every month')),
-              ButtonSegment(value: PlanMode.stepUp, label: Text('Increase $stepPct% every year')),
-            ],
-            selected: {state.mode},
-            onSelectionChanged: (s) => context.read<ProjectionBloc>().add(PlanModeToggled(s.first)),
-          ),
-          const SizedBox(height: 20),
+            const SizedBox(height: 20),
+          ],
           if (p.onTrack)
             const NoticeBanner(
               icon: Icons.check_circle_outline,
               color: AppColors.success,
               background: AppColors.successBg,
-              title: 'Good news:',
-              body: 'the money you’ve already invested is expected to reach this goal on its own.',
+              title: _goodNewsText,
+              body: _theMoneyYouVeText,
             )
           else ...[
             Text(
-              state.mode == PlanMode.level ? 'Invest every month' : 'Start with',
+              state.mode == PlanMode.level ? _investEveryMonthText : _startWithText,
               style: const TextStyle(color: AppColors.text2),
             ),
             Text.rich(
@@ -290,12 +339,12 @@ class _Hero extends StatelessWidget {
                 text: MoneyFormatter.full(plan.firstYearSip, c),
                 children: const [
                   TextSpan(
-                    text: ' / month',
+                    text: _monthText,
                     style: TextStyle(fontSize: 18, color: AppColors.text2),
                   ),
                 ],
               ),
-              style: const TextStyle(fontSize: 44, fontWeight: FontWeight.w300),
+              style: const TextStyle(fontSize: 44, fontWeight: .w300),
             ),
             Text(
               state.mode == PlanMode.level
@@ -305,10 +354,7 @@ class _Hero extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 12),
-          const Text(
-            'Return and inflation are illustrative assumptions, not guarantees.',
-            style: TextStyle(fontSize: 12, color: AppColors.text3),
-          ),
+          const Text(_assumptionsNote, style: TextStyle(fontSize: 12, color: AppColors.text3)),
         ],
       ),
     );
@@ -327,7 +373,7 @@ class _Breakdown extends StatelessWidget {
     final inPct = total == 0 ? 0 : plan.totalInvested / total * 100;
     final growthPct = 100 - inPct;
     Widget line(Color color, String label, double value, num pct) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const .symmetric(vertical: 6),
       child: Row(
         children: [
           Container(width: 10, height: 10, color: color),
@@ -359,8 +405,8 @@ class _Breakdown extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        line(AppColors.seriesLevel, 'You put in', plan.totalInvested, inPct),
-        line(AppColors.gold, 'Growth from returns', plan.growth, growthPct),
+        line(AppColors.seriesLevel, _youPutInText, plan.totalInvested, inPct),
+        line(AppColors.gold, _growthFromReturnsText, plan.growth, growthPct),
       ],
     );
   }
@@ -378,22 +424,21 @@ class _Explainer extends StatelessWidget {
     final ret = Scaled.formatCompact(goal.expectedReturnBp);
     final step = Scaled.formatCompact(goal.annualStepUpBp);
     final infl = Scaled.formatCompact(goal.inflationBp);
+    final hasStepUp = goal.annualStepUpBp > 0;
     final terms = [
+      (_sipSystematicInvestmentPlanText, _aFixedAmountInvestedText),
       (
-        'SIP (Systematic Investment Plan)',
-        'A fixed amount invested in a mutual fund every month. We assume it goes in on the first day of each month.',
-      ),
-      (
-        'Expected return',
+        _expectedReturnText,
         'The yearly growth you entered ($ret%). We convert it to the monthly rate that compounds to exactly $ret% '
             'over a year, so your returns also earn returns. It is an assumption, not a promise.',
       ),
+      if (hasStepUp)
+        (
+          _stepUpText,
+          'Raising your SIP by a fixed percentage ($step%) once a year, at the start of each new year.',
+        ),
       (
-        'Step-up',
-        'Raising your SIP by a fixed percentage ($step%) once a year, at the start of each new year.',
-      ),
-      (
-        'Inflation and today’s money',
+        _inflationAndTodaysMoneyText,
         'Prices rise each year ($infl% here). Today’s money is the goal amount reduced by that rise for every '
             'year until your goal, so you can see its real buying power.',
       ),
@@ -403,30 +448,30 @@ class _Explainer extends StatelessWidget {
       'Money already invested grows to ${MoneyFormatter.short(projection.corpusFutureValue, c)}.',
       'The gap left to fill: ${MoneyFormatter.short(projection.gap, c)}.',
       'Monthly SIP that fills it in ${DateFormats.duration(projection.months)}: '
-          '${MoneyFormatter.full(projection.level.firstYearSip, c)}, or '
-          '${MoneyFormatter.full(projection.stepUp.firstYearSip, c)} rising $step% a year.',
+          '${MoneyFormatter.full(projection.level.firstYearSip, c)}'
+          '${hasStepUp ? ', or ${MoneyFormatter.full(projection.stepUp.firstYearSip, c)} rising $step% a year' : ''}.',
     ];
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: [
         for (final (title, body) in terms)
           Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: const .only(bottom: 12),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: .start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                Text(title, style: const TextStyle(fontWeight: .w600)),
                 Text(body, style: const TextStyle(color: AppColors.text2, height: 1.4)),
               ],
             ),
           ),
         const Divider(height: 24),
-        const Text('Your numbers, step by step', style: TextStyle(fontWeight: FontWeight.w600)),
+        const Text(_yourNumbersStepByText, style: TextStyle(fontWeight: .w600)),
         const SizedBox(height: 8),
         for (final (i, s) in steps.indexed)
           Padding(
-            padding: const EdgeInsets.only(bottom: 6),
+            padding: const .only(bottom: 6),
             child: Text('${i + 1}. $s', style: const TextStyle(height: 1.4)),
           ),
       ],
@@ -445,12 +490,12 @@ class _Card extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: AppColors.layer,
-      padding: const EdgeInsets.all(24),
+      padding: const .all(24),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: [
-          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-          if (subtitle != null) Text(subtitle!, style: const TextStyle(color: AppColors.text2)),
+          Text(title, style: const TextStyle(fontSize: 18, fontWeight: .w600)),
+          if (subtitle case final s?) Text(s, style: const TextStyle(color: AppColors.text2)),
           const SizedBox(height: 16),
           child,
         ],
@@ -469,7 +514,7 @@ class _Responsive extends StatelessWidget {
     builder: (context, c) => c.maxWidth >= 800
         ? IntrinsicHeight(
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: .stretch,
               children: [
                 for (final (i, child) in children.indexed) ...[
                   if (i > 0) const SizedBox(width: 16),

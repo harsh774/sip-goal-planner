@@ -5,6 +5,19 @@ import '../../../../core/domain/currency.dart';
 import '../../../../core/format/money_formatter.dart';
 import '../../domain/entities/projection.dart';
 
+const _yearText = 'Year';
+const _monthlySipText = 'Monthly SIP';
+const _putInSoFarText = 'Put in so far';
+const _growthSoFarText = 'Growth so far';
+const _totalWorthText = 'Total worth';
+const _goalReachedText = 'Goal reached';
+const _measureText = 'Measure';
+const _sameEveryMonthText = 'Same every month';
+const _monthlySipInYearText = 'Monthly SIP in year 1';
+const _monthlySipInFinalText = 'Monthly SIP in final year';
+const _totalYouPutInText = 'Total you put in';
+const _growthFromReturnsText = 'Growth from returns';
+
 class YearlyTable extends StatelessWidget {
   const YearlyTable({super.key, required this.plan, required this.currency});
 
@@ -16,26 +29,20 @@ class YearlyTable extends StatelessWidget {
     String money(double v) => MoneyFormatter.full(v, currency);
     return _Scrollable(
       child: DataTable(
-        headingTextStyle: const TextStyle(
-          fontSize: 12,
-          color: AppColors.text2,
-          fontWeight: FontWeight.w600,
-        ),
+        headingTextStyle: const TextStyle(fontSize: 12, color: AppColors.text2, fontWeight: .w600),
         columns: const [
-          DataColumn(label: Text('Year')),
-          DataColumn(label: Text('Monthly SIP'), numeric: true),
-          DataColumn(label: Text('Put in so far'), numeric: true),
-          DataColumn(label: Text('Growth so far'), numeric: true),
-          DataColumn(label: Text('Total worth'), numeric: true),
-          DataColumn(label: Text('Goal reached'), numeric: true),
+          DataColumn(label: Text(_yearText)),
+          DataColumn(label: Text(_monthlySipText), numeric: true),
+          DataColumn(label: Text(_putInSoFarText), numeric: true),
+          DataColumn(label: Text(_growthSoFarText), numeric: true),
+          DataColumn(label: Text(_totalWorthText), numeric: true),
+          DataColumn(label: Text(_goalReachedText), numeric: true),
         ],
         rows: [
           for (final r in plan.rows)
             DataRow(
               cells: [
-                DataCell(
-                  Text('${r.year} · ${r.calendarYear}${r.months < 12 ? ' (${r.months} mo)' : ''}'),
-                ),
+                DataCell(Text('${r.calendarYear}')),
                 DataCell(Text(money(r.monthlySip))),
                 DataCell(Text(money(r.investedToDate))),
                 DataCell(Text(money(r.growthToDate))),
@@ -71,21 +78,17 @@ class ComparisonTable extends StatelessWidget {
 
     return _Scrollable(
       child: DataTable(
-        headingTextStyle: const TextStyle(
-          fontSize: 12,
-          color: AppColors.text2,
-          fontWeight: FontWeight.w600,
-        ),
+        headingTextStyle: const TextStyle(fontSize: 12, color: AppColors.text2, fontWeight: .w600),
         columns: [
-          const DataColumn(label: Text('Measure')),
-          const DataColumn(label: Text('Same every month'), numeric: true),
+          const DataColumn(label: Text(_measureText)),
+          const DataColumn(label: Text(_sameEveryMonthText), numeric: true),
           DataColumn(label: Text('Increase $stepUpPct% yearly'), numeric: true),
         ],
         rows: [
-          row('Monthly SIP in year 1', l.firstYearSip, s.firstYearSip),
-          row('Monthly SIP in final year', l.finalYearSip, s.finalYearSip),
-          row('Total you put in', l.totalInvested, s.totalInvested),
-          row('Growth from returns', l.growth, s.growth),
+          row(_monthlySipInYearText, l.firstYearSip, s.firstYearSip),
+          row(_monthlySipInFinalText, l.finalYearSip, s.finalYearSip),
+          row(_totalYouPutInText, l.totalInvested, s.totalInvested),
+          row(_growthFromReturnsText, l.growth, s.growth),
         ],
       ),
     );
@@ -100,7 +103,7 @@ class _Scrollable extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, c) => SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
+      scrollDirection: .horizontal,
       child: ConstrainedBox(
         constraints: BoxConstraints(minWidth: c.maxWidth),
         child: child,

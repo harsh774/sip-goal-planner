@@ -6,6 +6,13 @@ import '../../../../core/format/money_formatter.dart';
 import '../../../../shared/widgets/disclaimer.dart';
 import '../../domain/entities/projection.dart';
 
+const _livePreviewText = 'Live preview';
+const _fillInTheHighlightedText = 'Fill in the highlighted fields to see your plan.';
+const _monthlySipNeededText = 'Monthly SIP needed';
+const _nothingMoreNeededText = 'Nothing more needed';
+const _goalInTodaysMoneyText = 'Goal in today’s money';
+const _totalYouPutInText = 'Total you put in';
+
 class PlanPreviewPanel extends StatelessWidget {
   const PlanPreviewPanel({
     super.key,
@@ -28,26 +35,23 @@ class PlanPreviewPanel extends StatelessWidget {
     final p = projection;
     return Container(
       color: AppColors.layer,
-      padding: const EdgeInsets.all(24),
+      padding: const .all(24),
       child: Semantics(
         liveRegion: true,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: .start,
           children: [
-            const Text('Live preview', style: TextStyle(fontSize: 12, color: AppColors.text2)),
+            const Text(_livePreviewText, style: TextStyle(fontSize: 12, color: AppColors.text2)),
             const SizedBox(height: 16),
             if (p == null)
-              const Text(
-                'Fill in the highlighted fields to see your plan.',
-                style: TextStyle(color: AppColors.text2),
-              )
+              const Text(_fillInTheHighlightedText, style: TextStyle(color: AppColors.text2))
             else ...[
-              const Text('Monthly SIP needed', style: TextStyle(color: AppColors.text2)),
+              const Text(_monthlySipNeededText, style: TextStyle(color: AppColors.text2)),
               Text(
                 p.onTrack
-                    ? 'Nothing more needed'
+                    ? _nothingMoreNeededText
                     : MoneyFormatter.full(p.level.firstYearSip, currency),
-                style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w300),
+                style: const TextStyle(fontSize: 36, fontWeight: .w300),
               ),
               Text(
                 'to reach ${MoneyFormatter.short(target!, currency)} by '
@@ -59,8 +63,8 @@ class PlanPreviewPanel extends StatelessWidget {
                 'With $stepUpPct% yearly step-up',
                 MoneyFormatter.full(p.stepUp.firstYearSip, currency),
               ),
-              _Line('Goal in today’s money', MoneyFormatter.short(p.todayValue, currency)),
-              _Line('Total you put in', MoneyFormatter.short(p.level.totalInvested, currency)),
+              _Line(_goalInTodaysMoneyText, MoneyFormatter.short(p.todayValue, currency)),
+              _Line(_totalYouPutInText, MoneyFormatter.short(p.level.totalInvested, currency)),
             ],
             const SizedBox(height: 16),
             const Text(
@@ -82,13 +86,13 @@ class _Line extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 6),
+    padding: const .symmetric(vertical: 6),
     child: Row(
       children: [
         Expanded(
           child: Text(label, style: const TextStyle(color: AppColors.text2)),
         ),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+        Text(value, style: const TextStyle(fontWeight: .w600)),
       ],
     ),
   );
