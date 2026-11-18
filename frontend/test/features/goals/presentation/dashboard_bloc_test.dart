@@ -171,4 +171,25 @@ void main() {
       expect(bloc.state.summary!.currency, Currency.usd);
     },
   );
+
+  blocTest<DashboardBloc, DashboardState>(
+    'search waits for typing to pause, then asks the API once with the last text',
+    setUp: () => answerGoals(Success(_page([goalFixture()]))),
+    build: build,
+    seed: () => const DashboardState(status: DashboardStatus.ready, query: GoalQuery(page: 2)),
+    act: (bloc) async {
+      bloc
+        ..add(const DashboardSearchChanged('h'))
+        ..add(const DashboardSearchChanged('ho'));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      bloc.add(const DashboardSearchChanged(' home '));
+    },
+    wait: const Duration(milliseconds: 450),
+    verify: (bloc) {
+      verify(() => getGoals(const GoalQuery(search: 'home'))).called(1);
+      verifyNoMoreInteractions(getGoals);
+      verifyNever(() => getSummary(any()));
+      expect(bloc.state.query.search, 'home');
+    },
+  );
 }

@@ -40,6 +40,11 @@ void main() {
     });
   });
 
+  test('search text is sent as q only when present', () {
+    expect(GoalQueryModel.toQuery(const GoalQuery(search: 'home'))['q'], 'home');
+    expect(GoalQueryModel.toQuery(const GoalQuery()).containsKey('q'), isFalse);
+  });
+
   test('parses a page and a summary', () {
     final page = GoalQueryModel.pageFromJson({
       'items': <Object>[],

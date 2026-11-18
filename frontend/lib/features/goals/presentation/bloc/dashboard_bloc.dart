@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/domain/currency.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/error/result.dart';
+import '../../../../core/presentation/event_transformers.dart';
 import '../../../../core/presentation/slow_notice.dart';
 import '../../../projection/domain/usecases/plan_goals.dart';
 import '../../domain/entities/goal.dart';
@@ -26,6 +27,13 @@ final class DashboardFiltersChanged extends DashboardEvent {
   const DashboardFiltersChanged(this.filters);
 
   final GoalFilters filters;
+}
+
+/// Typed in the search box; debounced so the API is called once typing pauses.
+final class DashboardSearchChanged extends DashboardEvent {
+  const DashboardSearchChanged(this.text);
+
+  final String text;
 }
 
 final class DashboardSortChanged extends DashboardEvent {
@@ -120,6 +128,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     required GetGoalsSummary getSummary,
     required PlanGoals planGoals,
     this.reachingSoonCount = 3,
+    this.searchDebounce = const Duration(milliseconds: 300),
     Duration slowAfter = const Duration(seconds: 3),
   }) : _getGoals = getGoals,
        _getSummary = getSummary,
@@ -131,6 +140,11 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       (e, emit) => _reloadList(emit, state.query.copyWith(filters: e.filters, page: 1)),
       transformer: restartable(),
     );
+    on<DashboardSearchChanged>((e, emit) {
+      final search = e.text.trim();
+      if (search == state.query.search) return null;
+      return _reloadList(emit, state.query.copyWith(search: search, page: 1));
+    }, transformer: debounceRestartable(searchDebounce));
     on<DashboardSortChanged>(
       (e, emit) => _reloadList(emit, state.query.copyWith(sort: e.sort, page: 1)),
       transformer: restartable(),
@@ -143,6 +157,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   }
 
   final int reachingSoonCount;
+  final Duration searchDebounce;
   final GetGoals _getGoals;
   final GetGoalsSummary _getSummary;
   final PlanGoals _planGoals;

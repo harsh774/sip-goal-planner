@@ -44,25 +44,31 @@ class GoalFilters extends Equatable {
 class GoalQuery extends Equatable {
   const GoalQuery({
     this.filters = GoalFilters.none,
+    this.search = '',
     this.sort = GoalSort.newest,
     this.page = 1,
     this.pageSize = 10,
   });
 
   final GoalFilters filters;
+
+  /// Matches goal names containing this text; empty means no search.
+  final String search;
   final GoalSort sort;
   final int page;
   final int pageSize;
 
-  GoalQuery copyWith({GoalFilters? filters, GoalSort? sort, int? page}) => GoalQuery(
-    filters: filters ?? this.filters,
-    sort: sort ?? this.sort,
-    page: page ?? this.page,
-    pageSize: pageSize,
-  );
+  GoalQuery copyWith({GoalFilters? filters, String? search, GoalSort? sort, int? page}) =>
+      GoalQuery(
+        filters: filters ?? this.filters,
+        search: search ?? this.search,
+        sort: sort ?? this.sort,
+        page: page ?? this.page,
+        pageSize: pageSize,
+      );
 
   @override
-  List<Object?> get props => [filters, sort, page, pageSize];
+  List<Object?> get props => [filters, search, sort, page, pageSize];
 }
 
 class Paged<T> extends Equatable {

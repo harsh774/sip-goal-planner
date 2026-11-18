@@ -16,6 +16,7 @@ abstract final class GoalQueryModel {
 
   static Map<String, dynamic> toQuery(GoalQuery q) => {
     ...filtersToQuery(q.filters),
+    if (q.search.isNotEmpty) 'q': q.search,
     'sort': q.sort.code,
     'page': q.page,
     'page_size': q.pageSize,
