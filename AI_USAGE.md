@@ -6,7 +6,7 @@ How AI tools were used on this project. Kept up to date as the work goes on.
 
 - **Claude Code** (VS Code extension, Claude Opus), with the Superpowers plugin. I used its brainstorming skill to turn the brief into a design before writing any code.
 - **Claude Design**, for the UI mockups: 21 artboards covering desktop, phone and every UI state.
-- Agent configuration committed in this repo: `CLAUDE.md` *(to be added)*.
+- Agent configuration committed in this repo: `CLAUDE.md` (commands, architecture, conventions).
 
 ## What I delegated
 
