@@ -120,7 +120,8 @@ The full derivation is in `../docs/LLD.md` §1. In short:
 - **Step-up:** applied once a year.
 - **Required first SIP:** `P0 = gap / Σ (1+s)^⌊m/12⌋ (1+i)^(n−m)`.
   - The same formula handles zero return, 0% step-up and goals under a year.
-  - It's rounded **up** to a whole unit, so the plan still reaches the target.
+  - It's rounded **up** so the plan still reaches the target: to a whole unit, or to 0.01 when the target or corpus has decimals.
+  - Every other amount is rounded half-up to 2 decimal places.
 - **Today's money:** `target / (1 + inflation)^(months/12)`.
 
 The Flutter client runs the same engine in Dart and does every calculation the app shows. This endpoint exists because the brief requires one, and both versions are tested against the same shared vectors.

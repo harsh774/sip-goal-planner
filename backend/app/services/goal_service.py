@@ -15,7 +15,7 @@ from app.schemas.goal import FIELD_TO_COLUMN, MONEY_FIELDS, GoalCreate, GoalUpda
 from app.schemas.goal_query import GoalListParams, GoalSummaryParams
 from app.schemas.money import SCALE, format_scaled
 from app.services import fx
-from app.services.projection import Projection, ProjectionInput, project
+from app.services.projection import Projection, ProjectionInput, project, round_money
 
 
 def snapshot(goal: Goal) -> dict[str, str]:
@@ -105,14 +105,14 @@ class GoalService:
         sip = target = 0.0
         for goal in goals:
             plan = project(projection_input(goal, as_of)).level
-            sip += fx.convert(plan.first_year_sip, goal.currency, currency)
-            target += fx.convert(goal.target_amount / SCALE, goal.currency, currency)
+            sip += round_money(fx.convert(plan.first_year_sip, goal.currency, currency))
+            target += round_money(fx.convert(goal.target_amount / SCALE, goal.currency, currency))
 
         return GoalTotals(
             count=len(goals),
             currency=currency,
-            total_monthly_sip=sip,
-            total_target=target,
+            total_monthly_sip=round_money(sip),
+            total_target=round_money(target),
             converted=any(g.currency != currency for g in goals),
             rates_as_of=fx.RATES_AS_OF,
         )

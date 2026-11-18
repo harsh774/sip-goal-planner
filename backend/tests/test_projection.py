@@ -11,6 +11,7 @@ from app.services.projection import (
     months_between,
     project,
     required_first_sip,
+    round_money,
 )
 
 VECTORS = json.loads(
@@ -116,3 +117,41 @@ def test_corpus_above_target_needs_no_sip():
 )
 def test_months_between(start, end, expected):
     assert months_between(start, end) == expected
+
+
+def _case(name: str) -> ProjectionInput:
+    return _inputs(next(c for c in VECTORS if c["name"] == name)["input"])
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [(1.005, 1.01), (2.675, 2.68), (-1.005, -1.01), (0.004999, 0.0), (1234.5650000001, 1234.57)],
+)
+def test_round_money_is_half_up_to_two_places(value, expected):
+    assert round_money(value) == expected
+
+
+def test_whole_inputs_keep_whole_unit_sips():
+    result = project(_case("worked_example"))
+
+    assert all(row.monthly_sip == int(row.monthly_sip) for row in result.step_up.rows)
+
+
+def test_decimal_inputs_give_sips_in_cents():
+    result = project(_case("decimal_inputs_round_to_cents"))
+
+    assert result.step_up.rows[1].monthly_sip == 15340.57  # ceil_cents(14,270.29 x 1.075)
+
+
+@pytest.mark.parametrize("name", ["worked_example", "decimal_inputs_round_to_cents"])
+def test_every_reported_amount_has_at_most_two_decimals(name):
+    result = project(_case(name))
+    amounts = [result.corpus_future_value, result.gap, result.today_value]
+    for plan in (result.level, result.step_up):
+        amounts += [plan.total_invested, plan.growth, plan.final_balance]
+        for row in plan.rows:
+            amounts += [row.monthly_sip, row.invested_to_date, row.growth_to_date]
+            amounts += [row.closing_balance, row.goal_pct]
+            assert round_money(row.invested_to_date + row.growth_to_date) == row.closing_balance
+
+    assert all(round(a * 100) == pytest.approx(a * 100, abs=1e-6) for a in amounts)

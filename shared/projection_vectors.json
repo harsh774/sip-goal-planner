@@ -133,6 +133,25 @@
         "today_value": "115254.52",
         "on_track": false
       }
+    },
+    {
+      "name": "decimal_inputs_round_to_cents",
+      "input": {
+        "as_of": "2026-11-18",
+        "target_date": "2034-05-18",
+        "target_amount": "2500000.50",
+        "current_corpus": "15000.25",
+        "expected_return_pct": "11.5",
+        "annual_step_up_pct": "7.5",
+        "inflation_pct": "5.5"
+      },
+      "expected": {
+        "months": 90,
+        "level_sip": "17640.80",
+        "step_up_first_sip": "14270.29",
+        "today_value": "1673195.35",
+        "on_track": false
+      }
     }
   ]
 }

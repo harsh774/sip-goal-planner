@@ -4,7 +4,9 @@ Conventions (see docs/LLD.md §1):
 - Effective monthly rate: i = (1 + R)^(1/12) - 1.
 - SIP is paid at the start of each month (annuity due).
 - Step-up applies once a year, at the start of each goal year.
-- Required SIP is rounded up to a whole unit so the plan still reaches the target.
+- Required SIP is rounded up so the plan still reaches the target: to a whole unit,
+  or to 0.01 when the target or corpus was entered with decimals.
+- Every reported amount is rounded half-up to 2 decimal places.
 """
 
 import math
@@ -86,9 +88,23 @@ def required_first_sip(gap: float, months: int, monthly_rate: float, step_up: fl
     return gap / factor
 
 
-def _whole_units_up(value: float) -> float:
+def round_money(value: float) -> float:
+    """Half-up to 2 places. Rounding to 6 places first strips float noise (1.005 * 100)."""
+    cents = math.floor(round(abs(value) * 100, 6) + 0.5)
+    return math.copysign(cents, value) / 100
+
+
+def _has_cents(value: float) -> bool:
+    return round(value * 100) % 100 != 0
+
+
+def sip_unit(inputs: ProjectionInput) -> float:
+    return 0.01 if _has_cents(inputs.target) or _has_cents(inputs.corpus) else 1.0
+
+
+def _round_up(value: float, unit: float) -> float:
     # Round to 6 places first so float noise (21000.000000000004) doesn't add a unit.
-    return float(math.ceil(round(value, 6)))
+    return round_money(math.ceil(round(value / unit, 6)) * unit)
 
 
 def _add_months(start: date, months: int) -> tuple[int, int]:
@@ -99,18 +115,20 @@ def _add_months(start: date, months: int) -> tuple[int, int]:
 def build_plan(
     inputs: ProjectionInput, months: int, monthly_rate: float, step_up: float, gap: float
 ) -> Plan:
-    first_sip = _whole_units_up(required_first_sip(gap, months, monthly_rate, step_up))
+    unit = sip_unit(inputs)
+    first_sip = _round_up(required_first_sip(gap, months, monthly_rate, step_up), unit)
 
     balance = inputs.corpus
     invested = inputs.corpus
     rows: list[ScheduleRow] = []
     sip = first_sip
     for year_index in range(math.ceil(months / 12)):
-        sip = _whole_units_up(first_sip * (1 + step_up) ** year_index) if first_sip else 0.0
+        sip = _round_up(first_sip * (1 + step_up) ** year_index, unit) if first_sip else 0.0
         months_in_year = min(12, months - year_index * 12)
         for _ in range(months_in_year):
             balance = (balance + sip) * (1 + monthly_rate)
             invested += sip
+        closing, invested_so_far = round_money(balance), round_money(invested)
         calendar_year, _month = _add_months(inputs.as_of, year_index * 12 + months_in_year)
         rows.append(
             ScheduleRow(
@@ -118,10 +136,10 @@ def build_plan(
                 calendar_year=calendar_year,
                 months=months_in_year,
                 monthly_sip=sip,
-                invested_to_date=invested,
-                growth_to_date=balance - invested,
-                closing_balance=balance,
-                goal_pct=balance / inputs.target * 100,
+                invested_to_date=invested_so_far,
+                growth_to_date=round_money(closing - invested_so_far),
+                closing_balance=closing,
+                goal_pct=round_money(balance / inputs.target * 100),
             )
         )
 
@@ -129,9 +147,9 @@ def build_plan(
         annual_step_up=step_up,
         first_year_sip=first_sip,
         final_year_sip=sip,
-        total_invested=invested,
-        growth=balance - invested,
-        final_balance=balance,
+        total_invested=round_money(invested),
+        growth=round_money(round_money(balance) - round_money(invested)),
+        final_balance=round_money(balance),
         rows=rows,
     )
 
@@ -146,9 +164,9 @@ def project(inputs: ProjectionInput) -> Projection:
         as_of=inputs.as_of,
         months=months,
         monthly_rate=monthly_rate,
-        corpus_future_value=corpus_fv,
-        gap=max(gap, 0.0),
-        today_value=inputs.target / (1 + inputs.inflation) ** (months / 12),
+        corpus_future_value=round_money(corpus_fv),
+        gap=round_money(max(gap, 0.0)),
+        today_value=round_money(inputs.target / (1 + inputs.inflation) ** (months / 12)),
         on_track=gap <= 0,
         level=build_plan(inputs, months, monthly_rate, 0.0, gap),
         step_up=build_plan(inputs, months, monthly_rate, inputs.annual_step_up, gap),
