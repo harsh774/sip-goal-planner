@@ -211,7 +211,10 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   /// Filters, sort and paging change only the list; the totals always cover every goal.
   Future<void> _reloadList(Emitter<DashboardState> emit, GoalQuery query) async {
     emit(state.copyWith(query: query, listLoading: true, clearFailure: true));
-    emit(switch (await _getGoals(query)) {
+    final result = await _getGoals(query);
+    // Search, filters, sort and paging have separate handlers; a newer one may have won.
+    if (state.query != query) return;
+    emit(switch (result) {
       Success(value: final page) => state.copyWith(page: page.map(_plan), listLoading: false),
       Err(:final failure) => state.copyWith(listLoading: false, failure: failure),
     });

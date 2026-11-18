@@ -14,6 +14,15 @@ const _tips = [
   'Small, regular amounts beat waiting for a big one.',
 ];
 
+/// Loops [controller] unless the platform asks for reduced motion.
+void _followMotionSetting(BuildContext context, AnimationController controller) {
+  if (MediaQuery.disableAnimationsOf(context)) {
+    controller.stop();
+  } else if (!controller.isAnimating) {
+    controller.repeat();
+  }
+}
+
 /// Slowly drifting columns of money glyphs, faint gold, fading at the edges.
 class MoneyMatrix extends StatefulWidget {
   const MoneyMatrix({super.key});
@@ -23,8 +32,13 @@ class MoneyMatrix extends StatefulWidget {
 }
 
 class _MoneyMatrixState extends State<MoneyMatrix> with SingleTickerProviderStateMixin {
-  late final _clock = AnimationController(vsync: this, duration: const Duration(seconds: 24))
-    ..repeat();
+  late final _clock = AnimationController(vsync: this, duration: const Duration(seconds: 24));
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _followMotionSetting(context, _clock);
+  }
 
   @override
   void dispose() {
@@ -99,8 +113,16 @@ class Shimmer extends StatefulWidget {
 }
 
 class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
-  late final _sweep = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))
-    ..repeat();
+  late final _sweep = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _followMotionSetting(context, _sweep);
+  }
 
   @override
   void dispose() {

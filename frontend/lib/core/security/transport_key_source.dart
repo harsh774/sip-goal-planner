@@ -17,21 +17,31 @@ class TransportKey {
 /// plain Dio so fetching the key is never itself encrypted.
 class TransportKeySource {
   TransportKeySource(String baseUrl, {Future<String> Function()? appVersion})
-    : _dio = Dio(BaseOptions(baseUrl: baseUrl)),
+    : _dio = Dio(
+        BaseOptions(
+          baseUrl: baseUrl,
+          connectTimeout: const Duration(seconds: 15),
+          receiveTimeout: const Duration(seconds: 15),
+        ),
+      ),
       _appVersion = appVersion ?? _pubspecVersion;
 
   final Dio _dio;
   final Future<String> Function() _appVersion;
-  TransportKey? _cached;
+  Future<TransportKey>? _pending;
 
   /// The client id is the app version from pubspec.yaml (e.g. "1.0.0"), so each
   /// release has its own keys and an old release can be cut off by revoking them.
   static Future<String> _pubspecVersion() async => (await PackageInfo.fromPlatform()).version;
 
-  Future<TransportKey> current() async => _cached ??= await _fetch();
+  /// One fetch shared by concurrent requests; a failed fetch is retried next time.
+  Future<TransportKey> current() => _pending ??= _fetch().catchError((Object e) {
+    _pending = null;
+    throw e;
+  });
 
   /// After the server reports the cached version as stale.
-  void invalidate() => _cached = null;
+  void invalidate() => _pending = null;
 
   Future<TransportKey> _fetch() async {
     final response = await _dio.get<Map<String, dynamic>>(

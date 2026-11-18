@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pointycastle/export.dart' show InvalidCipherTextException;
 import 'package:sip_goal_planner/core/security/hybrid_cipher.dart';
 
 /// A public key produced by the backend's new_key_pair() (RSA-3072, SPKI DER).
@@ -36,5 +37,27 @@ void main() {
     expect(a.length, 384); // RSA-3072
     expect(a, isNot(equals(b))); // OAEP is randomised
     expect(HybridCipher.newAesKey(), isA<Uint8List>().having((k) => k.length, 'length', 32));
+  });
+
+  test('opens a payload sealed by the Python server', () {
+    // backend: seal(bytes(range(32)), b'{"ok":true}', response_aad(200, "GET", "/api/v1/goals"))
+    const fromServer = '3Ug3pdeSYZJ9dk+FR18KXTyDBBR/j+LcYYO8GqzzTOYPPU4ksax5';
+    final serverKey = Uint8List.fromList(List.generate(32, (i) => i));
+
+    final plain = HybridCipher.open(
+      serverKey,
+      fromServer,
+      HybridCipher.responseAad(200, 'GET', '/api/v1/goals'),
+    );
+
+    expect(utf8.decode(plain), '{"ok":true}');
+    expect(
+      () => HybridCipher.open(
+        serverKey,
+        fromServer,
+        HybridCipher.responseAad(500, 'GET', '/api/v1/goals'),
+      ),
+      throwsA(isA<InvalidCipherTextException>()),
+    );
   });
 }

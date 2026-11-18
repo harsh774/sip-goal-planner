@@ -40,8 +40,9 @@ abstract final class HybridCipher {
   static Uint8List queryAad(String method, String path) =>
       utf8.encode('req:${method.toUpperCase()}:$path?');
 
-  static Uint8List responseAad(String method, String path) =>
-      utf8.encode('res:${method.toUpperCase()}:$path');
+  /// The status is authenticated too, so a sealed body can't be replayed under another one.
+  static Uint8List responseAad(int status, String method, String path) =>
+      utf8.encode('res:$status:${method.toUpperCase()}:$path');
 
   static GCMBlockCipher _gcm(bool encrypt, Uint8List key, Uint8List nonce, Uint8List aad) =>
       GCMBlockCipher(AESEngine())

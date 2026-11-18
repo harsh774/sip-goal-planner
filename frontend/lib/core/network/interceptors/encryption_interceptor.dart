@@ -122,6 +122,11 @@ class EncryptionInterceptor extends Interceptor {
   void _open(Response<dynamic> response) {
     final contentType = response.headers.value('x-enc-content-type');
     final aes = response.requestOptions.extra[_aesKey];
+    // 204/304 and other empty responses have no body to open.
+    if (response.data case null || '') {
+      response.data = null;
+      return;
+    }
     if (contentType == null || aes is! Uint8List || response.data is! String) {
       if (response.data case final String text
           when response.requestOptions.extra[_aesKey] != null) {
@@ -135,7 +140,7 @@ class EncryptionInterceptor extends Interceptor {
       HybridCipher.open(
         aes,
         response.data as String,
-        HybridCipher.responseAad(options.method, options.uri.path),
+        HybridCipher.responseAad(response.statusCode ?? 0, options.method, options.uri.path),
       ),
     );
     response.data = contentType.contains('json') ? _tryJson(plain) : plain;

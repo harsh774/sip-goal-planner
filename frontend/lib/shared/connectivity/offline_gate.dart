@@ -23,7 +23,11 @@ class OfflineGate extends StatelessWidget {
     final online = context.watch<ConnectivityCubit>().state;
     return Stack(
       children: [
-        child,
+        // While offline, the page underneath stays mounted but unreachable.
+        ExcludeFocus(
+          excluding: !online,
+          child: ExcludeSemantics(excluding: !online, child: child),
+        ),
         if (!online) const Positioned.fill(child: OfflinePage()),
       ],
     );

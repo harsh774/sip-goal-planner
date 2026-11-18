@@ -14,7 +14,10 @@ class ConnectivityCubit extends Cubit<bool> {
   final ConnectivityService _service;
   late final StreamSubscription<bool> _sub;
 
-  Future<void> check() async => emit(await _service.isOnline());
+  Future<void> check() async {
+    final online = await _service.isOnline();
+    if (!isClosed) emit(online);
+  }
 
   @override
   Future<void> close() async {
