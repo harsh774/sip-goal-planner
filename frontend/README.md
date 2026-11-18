@@ -24,6 +24,16 @@ The API only accepts browser requests from origins listed in its `CORS_ORIGINS`,
 
 **Production build:** `flutter build web --dart-define=API_BASE_URL=…` writes static files to `build/web`.
 
+**Deploy (Cloudflare Pages):** live at https://sip-goal-planner.pages.dev, API on Render.
+
+```bash
+flutter build web --release --dart-define=API_BASE_URL=https://sip-goal-planner-zx14.onrender.com/api/v1
+npx wrangler login                     # once
+npx wrangler pages deploy build/web --project-name sip-goal-planner --branch main
+```
+
+Pages serves `index.html` for any unknown path, so deep links and the app's 404 page work. The API's `CORS_ORIGINS` must include `https://sip-goal-planner.pages.dev`.
+
 After adding a plugin, run `flutter clean` before building for web; a stale cached plugin registrant causes `MissingPluginException` at runtime.
 
 **Android:** needs the Android SDK and JDK 17.
