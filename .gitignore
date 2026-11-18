@@ -1,0 +1,21 @@
+# Secrets
+.env
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Flutter / Dart
+.dart_tool/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
