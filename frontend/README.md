@@ -1,6 +1,8 @@
 # SIP Goal Planner — Web and Android client
 
-A Flutter app (web and Android) for planning savings goals. It shows the monthly SIP each goal needs, how a yearly step-up changes it, and what the target is worth in today's money. **Every number shown is calculated in the client**; the API only stores goals.
+A Flutter app (web and Android) for planning savings goals. It shows the monthly SIP each goal needs, how a yearly step-up changes it, and what the target is worth in today's money. **Every number shown is calculated in the client**; the API stores goals and adds up the dashboard totals. Overview of the whole project: [`../README.md`](../README.md).
+
+**Screens:** log in / sign up · My goals dashboard (totals across all goals, reaching-soon goals, search, filters, numbered pages) · goal form with live preview (pinned to the bottom on phones) · goal plan with chart, yearly table and comparison · profile and password · about · offline and 404 pages.
 
 ## Run it
 
@@ -22,6 +24,8 @@ The API only accepts browser requests from origins listed in its `CORS_ORIGINS`,
 
 **Production build:** `flutter build web --dart-define=API_BASE_URL=…` writes static files to `build/web`.
 
+After adding a plugin, run `flutter clean` before building for web; a stale cached plugin registrant causes `MissingPluginException` at runtime.
+
 **Android:** needs the Android SDK and JDK 17.
 
 ```bash
@@ -39,17 +43,17 @@ The APK lands in `build/app/outputs/flutter-apk/app-release.apk`. Plain HTTP is 
 flutter test                                                     # all
 flutter test test/features/projection/domain/projection_calculator_test.dart   # one file
 flutter test --plain-name "shared vectors"                       # by name
-dart analyze && dart format --set-exit-if-changed lib test
+flutter analyze && dart format -l 100 --set-exit-if-changed lib test
 ```
 
-**What's covered (35 tests):**
-- **Projection engine:** the shared vectors in `../shared/projection_vectors.json`, the same file the backend's pytest suite runs; the closed-form check; step-up rounding.
-- **Money:** exact string ↔ integer parsing; INR lakh/crore and other currencies' formatting.
-- **Goal totals:** mixed currencies are converted and flagged as approximate; a goal's own numbers never change.
+**What's covered (72 tests):**
+- **Projection engine:** the shared vectors in `../shared/projection_vectors.json`, the same file the backend's pytest suite runs; the closed-form check; step-up and cents rounding.
+- **Money:** exact string ↔ integer parsing; INR lakh/crore and other currencies' formatting; amounts in words ("5 lakh 55 thousand 5 rupees").
 - **Form validation:** mirrors the API rules.
-- **`ApiClient`:** error mapping through a fake Dio adapter (422, 409, 401, 404, 500, timeout).
-- **`GoalListBloc`:** the slow-connection, empty, error and currency-switch states (bloc_test with mocktail).
-- **Widget:** the live preview panel.
+- **Network:** `ApiClient` error mapping through a fake Dio adapter; malformed responses become errors, not crashes.
+- **Encrypted payloads:** the interceptor against a fake server (seal/open, form bodies, 204, stale-key retry, sealed errors, off); a payload sealed by the Python server opened in Dart.
+- **Blocs:** `DashboardBloc` (load, slow, empty, error, paging, filters, 300 ms search debounce), `ProfileCubit`, connectivity.
+- **Widgets:** live preview panel, offline page, text-field height on focus, pinned footer.
 
 ## Architecture
 
@@ -59,22 +63,25 @@ Clean architecture, organised by feature. Dependencies point inward: **presentat
 lib/
   app/          router (go_router, redirects on auth state), theme (design tokens)
   core/
-    network/    Dio client, ApiClient wrapper, interceptors, ApiException, guard()
+    network/    Dio client, ApiClient wrapper, interceptors (auth, 401, encryption), remote_call, guard()
     error/      Failure (sealed), Result<T> (Success | Err)
     domain/     shared value types: Currency, Scaled (string <-> integer)
     format/     money and date formatting
     di/         get_it wiring
   features/
-    auth/       data · domain · presentation   (log in, register, session)
-    goals/      data · domain · presentation   (list, form, validation)
-    projection/ domain · presentation          (engine, FX, results; no data layer)
-  shared/       app shell, state views, disclaimer
+    security/   encryption settings, hybrid cipher (RSA-OAEP + AES-GCM), public-key source
+    presentation/ haptics, event transformers (debounce), slow-connection notice
+    auth/       data · domain · presentation   (log in, register, session, profile)
+    goals/      data · domain · presentation   (dashboard, search, filters, form, validation)
+    projection/ domain · presentation          (engine, results; no data layer)
+    about/      presentation
+  shared/       app shell + footer, state and loading views, offline gate, 404, buttons
 ```
 
 **Rules for each layer:**
 - **`domain`:** plain Dart. Entities, repository interfaces, use cases, and the projection engine. No Flutter, Dio or JSON.
 - **`data`:**
-  - Datasources call `ApiClient` and either return models or throw an `ApiException`.
+  - Datasources call `ApiClient` through `remoteObject`/`remoteVoid`, which turn missing or mistyped payloads into an `ApiException`; they never use `!` on JSON.
   - Repositories wrap each call in `guard()`, so they return a `Result<T>`. Dio types never leave this layer.
 - **`presentation`:** Blocs call use cases only.
   - Pages hold no business rules. Form validation lives in the domain (`GoalFormValidator`), so it can be tested without widgets.
@@ -84,7 +91,9 @@ lib/
 | Bloc | Job |
 |---|---|
 | `AuthBloc` | the session for the whole app; listens for a 401 on any request and logs out |
-| `GoalListBloc` | loads goals; works out per-goal SIPs and the total in the chosen currency on the device |
+| `DashboardBloc` | totals for all goals, reaching-soon goals, and the paged list; filters, sort and debounced search reload only the list |
+| `ProfileCubit` | name update and password change |
+| `ConnectivityCubit` | online/offline for the offline page |
 | `GoalFormBloc` | create or edit; client errors shown after the first submit, server errors mapped onto fields |
 | `PlanPreviewCubit` | live preview, run on every valid change |
 | `ProjectionBloc` | results screen: plan toggle and delete |
@@ -104,8 +113,10 @@ lib/
   - The API sends strings. `Scaled` parses them into integer hundredths (rates into basis points).
   - Values are converted to `double` only inside the engine.
 - **Each goal keeps its own currency.** "My goals" can show the total in any currency.
-  - It converts using a fixed snapshot of ECB reference rates dated 18 Nov 2026 (`fx_rates.dart`), with AED from its USD peg.
+  - The server adds it up (`GET /goals/summary`) using a fixed snapshot of ECB reference rates dated 18 Nov 2026 (`backend/app/services/fx.py`), with AED from its USD peg.
   - The total is labelled approximate. Live rates would be the next step.
+- **Optional encrypted payloads.** The lock button in the nav bar seals each request and response (AES-256-GCM, key wrapped with the server's RSA key). The client id is the app version from `pubspec.yaml`. Protocol: `../docs/LLD.md` §5a.
+- **Offline.** On web the browser's online/offline events drive the offline page; on Android, connectivity_plus.
 - **The token is stored in localStorage** (`shared_preferences` on web).
   - Simple, and it survives a reload. The risk is that an XSS bug in the app could read it.
   - An httpOnly cookie with CSRF protection would be safer, but was out of scope for the time available.
