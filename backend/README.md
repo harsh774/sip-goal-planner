@@ -100,6 +100,23 @@ All routes are under `/api/v1`. Everything except register and login needs `Auth
 - Validation failures return `422 {"detail": [{"field", "code", "message"}]}`. The `code` values are stable, so the client can rely on them.
 - Other errors return `{"detail": "..."}`.
 
+## Encrypted payloads (optional)
+
+Requests carrying `X-Enc-Key` are decrypted by `app/api/encrypted_transport.py` and their
+responses encrypted with the same per-request AES key (RSA-OAEP-SHA256 key wrap,
+AES-256-GCM payloads). Public keys: `GET /api/v1/crypto/public-key?client_id=web`.
+Protocol and key lifecycle: `docs/LLD.md` §5a.
+
+```bash
+uv run python scripts/rotate_transport_key.py web            # new version, old one retired
+uv run python scripts/rotate_transport_key.py web --revoke 1 # reject version 1 now
+```
+
+| Variable | Default | |
+|---|---|---|
+| `TRANSPORT_CLIENT_IDS` | `web,android` | clients allowed a key |
+| `TRANSPORT_KEY_GRACE_HOURS` | `24` | how long a retired key still works |
+
 ## Data conventions
 
 - **Money and percentages:** strings in JSON (`"2500000.50"`, `"12.5"`). They're parsed with `Decimal` and stored as `bigint`, scaled by 100:

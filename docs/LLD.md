@@ -310,6 +310,41 @@ Server returns `{"detail": [{"field", "code", "message"}]}`. The client maps eac
 
 Confirm-password matching is client-only.
 
+## 5a. Encrypted payloads (trial, off by default)
+
+On top of HTTPS, the app can seal every request and response body (and query string) so
+that anything terminating TLS in between — a proxy, a logging layer — sees only ciphertext.
+Toggled by the lock button in the nav bar; Swagger and plain clients are unaffected.
+
+| Step | Who | What |
+|---|---|---|
+| 1 | client | `GET /crypto/public-key?client_id=web\|android` → `{key_version, public_key}` (RSA-3072, SPKI DER base64). Cached until the server says it's stale. |
+| 2 | client | Per request: random AES-256 key; body sealed with AES-256-GCM (AAD `req:METHOD:/path`), query sealed with AAD `req:METHOD:/path?`; key wrapped with RSA-OAEP-SHA256. |
+| 3 | client | Sends `X-Enc-Client`, `X-Enc-Key-Version`, `X-Enc-Key`, `X-Enc-Content-Type`, `X-Enc-Query`; body = sealed payload. |
+| 4 | server | `EncryptedTransportMiddleware` unwraps the key with that version's private key, restores the body, content type and query, runs the request normally. |
+| 5 | server | Seals the response (errors included) with the same AES key, AAD `res:METHOD:/path`; real content type in `X-Enc-Content-Type`. |
+| 6 | client | Opens the response with the key it kept. |
+
+Sealed format: `base64(nonce[12] || ciphertext || tag[16])`. The AAD binds a payload to its
+method and path, so it can't be replayed against another endpoint.
+
+**Keys and rotation.** `transport_keys` holds one row per (client, version): the public key,
+the private key (encrypted at rest with `DATA_ENCRYPTION_KEY`), and a status:
+
+- `active`: handed out by step 1; at most one per client (partial unique index).
+- `retired`: replaced by `scripts/rotate_transport_key.py <client>`; still accepted for
+  `TRANSPORT_KEY_GRACE_HOURS` (24) so in-flight clients aren't cut off.
+- `revoked`: `--revoke <version>`; rejected at once.
+
+A stale version gets `409 key_version_stale`; the client refetches the key and retries once.
+
+**Limits.** Not a substitute for HTTPS: the public key itself arrives over TLS. No replay
+window beyond the endpoint binding (a captured request can be re-sent to the same endpoint).
+Headers, method and path stay visible.
+
+**At-rest keys.** Column ciphertext carries a `v1:` prefix, but `DATA_ENCRYPTION_KEY`
+rotation (keyring + re-encryption job) is not implemented yet.
+
 ## 6. Client (Flutter web)
 
 ### 6.1 Structure
