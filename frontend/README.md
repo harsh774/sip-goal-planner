@@ -1,6 +1,6 @@
-# SIP Goal Planner — Web client
+# SIP Goal Planner — Web and Android client
 
-A Flutter web app for planning savings goals. It shows the monthly SIP each goal needs, how a yearly step-up changes it, and what the target is worth in today's money. **Every number shown is calculated in the client**; the API only stores goals.
+A Flutter app (web and Android) for planning savings goals. It shows the monthly SIP each goal needs, how a yearly step-up changes it, and what the target is worth in today's money. **Every number shown is calculated in the client**; the API only stores goals.
 
 ## Run it
 
@@ -16,11 +16,22 @@ flutter run -d chrome --web-port 3000
 
 | Define | Default | Notes |
 |---|---|---|
-| `API_BASE_URL` | `http://localhost:8000/api/v1` | `--dart-define=API_BASE_URL=https://…` |
+| `API_BASE_URL` | `http://localhost:8000/api/v1` (web), `http://10.0.2.2:8000/api/v1` (Android emulator) | `--dart-define=API_BASE_URL=https://…` |
 
 The API only accepts browser requests from origins listed in its `CORS_ORIGINS`, which defaults to `http://localhost:3000`. That's why the commands use port 3000.
 
 **Production build:** `flutter build web --dart-define=API_BASE_URL=…` writes static files to `build/web`.
+
+**Android:** needs the Android SDK and JDK 17.
+
+```bash
+flutter run -d emulator-5554          # the emulator reaches the local API at 10.0.2.2
+flutter build apk --release --dart-define=API_BASE_URL=https://…
+```
+
+The APK lands in `build/app/outputs/flutter-apk/app-release.apk`. Plain HTTP is allowed only to `10.0.2.2` and `localhost` (`android/app/src/main/res/xml/network_security_config.xml`); any other API must use HTTPS. Release builds are signed with the debug key until a real keystore is configured in `android/app/build.gradle.kts`.
+
+**Icons:** the GP mark lives in `assets/branding/`; the favicon, PWA icons and Android launcher icons are generated from `app_icon.png`.
 
 ## Tests
 
