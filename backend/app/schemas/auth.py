@@ -3,7 +3,7 @@ import uuid
 from pydantic import BaseModel, ConfigDict
 
 from app.models.enums import Currency
-from app.schemas.fields import CurrencyField, Email, Name, Password
+from app.schemas.fields import CurrencyField, Email, FirstName, LastName, Password
 
 
 class RegisterIn(BaseModel):
@@ -11,27 +11,35 @@ class RegisterIn(BaseModel):
         extra="forbid",
         json_schema_extra={
             "examples": [
-                {"email": "priya@example.com", "password": "secret123", "display_name": "Priya"}
+                {
+                    "first_name": "Priya",
+                    "last_name": "Sharma",
+                    "email": "priya@example.com",
+                    "password": "secret123",
+                }
             ]
         },
     )
 
+    first_name: FirstName
+    last_name: LastName
     email: Email
     password: Password
-    display_name: Name | None = None
 
 
 class UserUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     default_currency: CurrencyField | None = None
-    display_name: Name | None = None
+    first_name: FirstName | None = None
+    last_name: LastName | None = None
 
 
 class UserOut(BaseModel):
     id: uuid.UUID
     email: str
-    display_name: str
+    first_name: str
+    last_name: str
     default_currency: Currency
 
 

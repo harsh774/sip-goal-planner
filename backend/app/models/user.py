@@ -19,7 +19,8 @@ class User(Base):
     # Keyed hash of the normalised email: lookup and uniqueness without decrypting.
     email_hash: Mapped[str] = mapped_column(Text, nullable=False)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
-    display_name: Mapped[str] = mapped_column(EncryptedText, nullable=False)
+    first_name: Mapped[str] = mapped_column(EncryptedText, nullable=False)
+    last_name: Mapped[str] = mapped_column(EncryptedText, nullable=False)
     default_currency: Mapped[Currency] = mapped_column(
         currency_enum, nullable=False, server_default=text("'INR'")
     )

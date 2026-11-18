@@ -35,7 +35,8 @@ class AuthService:
             email=data.email,
             email_hash=email_hash,
             password_hash=hash_password(data.password),
-            display_name=data.display_name or data.email.split("@")[0],
+            first_name=data.first_name,
+            last_name=data.last_name,
             default_currency=Currency.INR,
         )
         try:
@@ -56,7 +57,9 @@ class AuthService:
     def update_profile(self, user: User, data: UserUpdate) -> User:
         if data.default_currency is not None:
             user.default_currency = data.default_currency
-        if data.display_name is not None:
-            user.display_name = data.display_name
+        if data.first_name is not None:
+            user.first_name = data.first_name
+        if data.last_name is not None:
+            user.last_name = data.last_name
         self._db.commit()
         return user

@@ -41,9 +41,19 @@ def client(migrated_db) -> Iterator[TestClient]:
 
 def auth_headers(client: TestClient, email: str = "priya@example.com") -> dict[str, str]:
     password = "secret123"
-    client.post(f"{API}/auth/register", json={"email": email, "password": password})
+    client.post(f"{API}/auth/register", json=register_payload(email=email, password=password))
     response = client.post(f"{API}/auth/login", data={"username": email, "password": password})
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+
+def register_payload(**overrides) -> dict:
+    payload = {
+        "first_name": "Priya",
+        "last_name": "Sharma",
+        "email": "priya@example.com",
+        "password": "secret123",
+    }
+    return payload | overrides
 
 
 def goal_payload(**overrides) -> dict:

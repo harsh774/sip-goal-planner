@@ -39,6 +39,7 @@ class Goal(Base):
         ),
         CheckConstraint("inflation_bp BETWEEN 0 AND 1200", name="ck_goals_inflation_bp_range"),
         Index("ix_goals_user_id_deleted_at", "user_id", "deleted_at"),
+        Index("ix_goals_user_id_target_date", "user_id", "target_date"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid7)

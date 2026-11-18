@@ -44,7 +44,20 @@ def _check_name(value: str) -> str:
     return value
 
 
+def _person_name(label: str):
+    def check(value: str) -> str:
+        if not value:
+            raise PydanticCustomError("name_required", f"Enter your {label}.")
+        if len(value) > 50:
+            raise PydanticCustomError("name_too_long", "Use at most 50 characters.")
+        return value
+
+    return AfterValidator(check)
+
+
 Email = Annotated[str, BeforeValidator(_strip), AfterValidator(_check_email)]
+FirstName = Annotated[str, BeforeValidator(_strip), _person_name("first name")]
+LastName = Annotated[str, BeforeValidator(_strip), _person_name("last name")]
 Password = Annotated[str, AfterValidator(_check_password)]
 Name = Annotated[str, BeforeValidator(_strip), AfterValidator(_check_name)]
 
