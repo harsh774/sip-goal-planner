@@ -9,6 +9,7 @@ import '../../../../core/domain/currency.dart';
 import '../../../../core/domain/scaled.dart';
 import '../../../../core/format/money_formatter.dart';
 import '../../../../shared/widgets/app_shell.dart';
+import '../../../../shared/widgets/elevated_card.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../../goals/domain/entities/goal.dart';
 import '../../domain/entities/projection.dart';
@@ -295,9 +296,8 @@ class _Hero extends StatelessWidget {
     final c = state.goal.currency;
     final plan = state.selectedPlan;
 
-    return Container(
-      color: AppColors.layer,
-      padding: const .all(24),
+    return ElevatedCard(
+      highlight: true,
       child: Column(
         crossAxisAlignment: .start,
         children: [
@@ -307,7 +307,7 @@ class _Hero extends StatelessWidget {
             SegmentedButton<PlanMode>(
               showSelectedIcon: false,
               style: SegmentedButton.styleFrom(
-                shape: const RoundedRectangleBorder(),
+                shape: RoundedRectangleBorder(borderRadius: .circular(10)),
                 selectedBackgroundColor: AppColors.gold,
                 selectedForegroundColor: AppColors.onGold,
               ),
@@ -488,9 +488,7 @@ class _Card extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.layer,
-      padding: const .all(24),
+    return ElevatedCard(
       child: Column(
         crossAxisAlignment: .stretch,
         children: [

@@ -172,7 +172,9 @@ class GrowthChart extends StatelessWidget {
                   getTitlesWidget: (v, meta) {
                     // The last label is the goal's own year; drop a whole-year tick crowding it.
                     final isEnd = v == meta.max;
-                    if (!isEnd && meta.max - v < 0.5) return const SizedBox.shrink();
+                    if (!isEnd && meta.max - v < meta.appliedInterval * 0.6) {
+                      return const SizedBox.shrink();
+                    }
                     final year = isEnd && plan.rows.isNotEmpty
                         ? plan.rows.last.calendarYear
                         : startYear + v.round();

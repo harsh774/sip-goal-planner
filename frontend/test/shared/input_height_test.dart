@@ -8,7 +8,9 @@ void main() {
       MaterialApp(
         theme: AppTheme.dark(),
         home: const Scaffold(
-          body: Column(children: [TextField(decoration: InputDecoration(labelText: 'Name'))]),
+          body: Column(
+            children: [TextField(decoration: InputDecoration(labelText: 'Name'))],
+          ),
         ),
       ),
     );
