@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import asdict
 from datetime import date
 from typing import Annotated
 
@@ -6,6 +7,7 @@ from fastapi import APIRouter, Query, Response, status
 
 from app.api.deps import CurrentUser, GoalServiceDep
 from app.schemas.goal import GoalCreate, GoalLogOut, GoalOut, GoalUpdate
+from app.schemas.goal_query import GoalListParams, GoalPageOut, GoalSummaryOut, GoalSummaryParams
 from app.schemas.projection import ProjectionOut
 
 router = APIRouter(prefix="/goals", tags=["goals"])
@@ -13,9 +15,29 @@ router = APIRouter(prefix="/goals", tags=["goals"])
 _NOT_FOUND = {404: {"description": "Goal not found, deleted, or owned by another user."}}
 
 
-@router.get("", response_model=list[GoalOut])
-def list_goals(user: CurrentUser, goals: GoalServiceDep):
-    return [GoalOut.from_model(g) for g in goals.list(user)]
+@router.get("", response_model=GoalPageOut, summary="List goals (filtered, sorted, paginated)")
+def list_goals(
+    params: Annotated[GoalListParams, Query()], user: CurrentUser, goals: GoalServiceDep
+):
+    """`sort=target_date` lists the goals reaching their date soonest first."""
+    page = goals.page(user, params)
+    return GoalPageOut(
+        items=[GoalOut.from_model(g) for g in page.items],
+        page=page.page,
+        page_size=page.page_size,
+        total=page.total,
+        total_pages=page.total_pages,
+    )
+
+
+@router.get("/summary", response_model=GoalSummaryOut, summary="Totals across matching goals")
+def goals_summary(
+    params: Annotated[GoalSummaryParams, Query()], user: CurrentUser, goals: GoalServiceDep
+):
+    """Adds up the level monthly SIP and target of every goal matching the filters, converted
+    into `in_currency` (default: the user's default currency) at a fixed, dated rate table."""
+    totals = goals.summary(user, params)
+    return GoalSummaryOut(**asdict(totals))
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=GoalOut)

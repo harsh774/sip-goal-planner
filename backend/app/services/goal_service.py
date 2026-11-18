@@ -1,5 +1,7 @@
+import math
 import uuid
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from typing import Any
 
@@ -10,7 +12,9 @@ from app.models import Goal, GoalLog, User
 from app.models.enums import CURRENCY_DECIMALS, Currency, GoalAction
 from app.repositories import GoalLogRepository, GoalRepository
 from app.schemas.goal import FIELD_TO_COLUMN, MONEY_FIELDS, GoalCreate, GoalUpdate
+from app.schemas.goal_query import GoalListParams, GoalSummaryParams
 from app.schemas.money import SCALE, format_scaled
+from app.services import fx
 from app.services.projection import Projection, ProjectionInput, project
 
 
@@ -27,6 +31,40 @@ def snapshot(goal: Goal) -> dict[str, str]:
         "annual_step_up_pct": format_scaled(goal.annual_step_up_bp),
         "inflation_pct": format_scaled(goal.inflation_bp),
     }
+
+
+@dataclass(frozen=True)
+class GoalPage:
+    items: Sequence[Goal]
+    page: int
+    page_size: int
+    total: int
+
+    @property
+    def total_pages(self) -> int:
+        return math.ceil(self.total / self.page_size)
+
+
+@dataclass(frozen=True)
+class GoalTotals:
+    count: int
+    currency: Currency
+    total_monthly_sip: float
+    total_target: float
+    converted: bool
+    rates_as_of: date
+
+
+def projection_input(goal: Goal, as_of: date) -> ProjectionInput:
+    return ProjectionInput(
+        target=goal.target_amount / SCALE,
+        corpus=goal.current_corpus / SCALE,
+        annual_return=goal.expected_return_bp / 10_000,
+        annual_step_up=goal.annual_step_up_bp / 10_000,
+        inflation=goal.inflation_bp / 10_000,
+        as_of=as_of,
+        target_date=goal.target_date,
+    )
 
 
 def _diff(before: dict[str, str], after: dict[str, str]) -> dict[str, dict[str, str]]:
@@ -48,8 +86,36 @@ class GoalService:
         self._goals = GoalRepository(db)
         self._logs = GoalLogRepository(db)
 
-    def list(self, user: User) -> Sequence[Goal]:
-        return self._goals.list_for_user(user.id)
+    def page(self, user: User, params: GoalListParams) -> GoalPage:
+        items, total = self._goals.page_for_user(
+            user.id,
+            params,
+            params.sort,
+            offset=(params.page - 1) * params.page_size,
+            limit=params.page_size,
+        )
+        return GoalPage(items=items, page=params.page, page_size=params.page_size, total=total)
+
+    def summary(self, user: User, params: GoalSummaryParams) -> GoalTotals:
+        """Level SIPs and targets of every matching goal, added up in one currency."""
+        currency = params.in_currency or user.default_currency
+        as_of = params.as_of or date.today()
+        goals = self._goals.all_matching(user.id, params)
+
+        sip = target = 0.0
+        for goal in goals:
+            plan = project(projection_input(goal, as_of)).level
+            sip += fx.convert(plan.first_year_sip, goal.currency, currency)
+            target += fx.convert(goal.target_amount / SCALE, goal.currency, currency)
+
+        return GoalTotals(
+            count=len(goals),
+            currency=currency,
+            total_monthly_sip=sip,
+            total_target=target,
+            converted=any(g.currency != currency for g in goals),
+            rates_as_of=fx.RATES_AS_OF,
+        )
 
     def get(self, user: User, goal_id: uuid.UUID) -> Goal:
         goal = self._goals.get_for_user(goal_id, user.id)
@@ -100,16 +166,7 @@ class GoalService:
         self, user: User, goal_id: uuid.UUID, as_of: date | None
     ) -> tuple[Goal, Projection]:
         goal = self.get(user, goal_id)
-        inputs = ProjectionInput(
-            target=goal.target_amount / SCALE,
-            corpus=goal.current_corpus / SCALE,
-            annual_return=goal.expected_return_bp / 10_000,
-            annual_step_up=goal.annual_step_up_bp / 10_000,
-            inflation=goal.inflation_bp / 10_000,
-            as_of=as_of or date.today(),
-            target_date=goal.target_date,
-        )
-        return goal, project(inputs)
+        return goal, project(projection_input(goal, as_of or date.today()))
 
     def _log(self, goal: Goal, user: User, action: GoalAction, changes: dict[str, Any]) -> None:
         self._logs.add(GoalLog(goal_id=goal.id, user_id=user.id, action=action, changes=changes))

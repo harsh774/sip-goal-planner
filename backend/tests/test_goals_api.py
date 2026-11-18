@@ -90,7 +90,7 @@ def test_other_users_goals_are_not_found(client, suffix):
     goal = _create(client, owner)
 
     assert client.get(f"{API}/goals/{goal['id']}{suffix}", headers=intruder).status_code == 404
-    assert client.get(f"{API}/goals", headers=intruder).json() == []
+    assert client.get(f"{API}/goals", headers=intruder).json()["total"] == 0
 
 
 def test_other_users_goals_cannot_be_changed(client):
@@ -120,7 +120,9 @@ def test_personal_data_is_encrypted_at_rest(client):
         assert stored.startswith("v1:")
     assert "secret.person" not in email
     assert "Aanya" not in name and "Aanya" not in changes
-    assert client.get(f"{API}/goals", headers=headers).json()[0]["name"] == "Aanya's college fund"
+    assert client.get(f"{API}/goals", headers=headers).json()["items"][0]["name"] == (
+        "Aanya's college fund"
+    )
 
 
 def test_history_records_create_and_only_changed_fields(client):
@@ -149,7 +151,7 @@ def test_delete_is_soft_and_logged(client):
 
     assert client.delete(f"{API}/goals/{goal_id}", headers=headers).status_code == 204
     assert client.get(f"{API}/goals/{goal_id}", headers=headers).status_code == 404
-    assert client.get(f"{API}/goals", headers=headers).json() == []
+    assert client.get(f"{API}/goals", headers=headers).json()["items"] == []
 
     with engine.connect() as conn:
         deleted_at = conn.execute(
@@ -172,7 +174,7 @@ def test_ids_are_time_ordered_uuid7(client):
     ids = [_create(client, headers, name=f"Goal {n}")["id"] for n in range(3)]
 
     assert all(uuid.UUID(i).version == 7 for i in ids)
-    listed = [g["id"] for g in client.get(f"{API}/goals", headers=headers).json()]
+    listed = [g["id"] for g in client.get(f"{API}/goals", headers=headers).json()["items"]]
     assert listed == list(reversed(ids))
 
 
