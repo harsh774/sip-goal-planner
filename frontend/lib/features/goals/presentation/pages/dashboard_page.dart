@@ -10,7 +10,6 @@ import '../../../../shared/widgets/app_shell.dart';
 import '../../../../shared/widgets/gold_button.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
-import '../../domain/entities/goal_query.dart';
 import '../bloc/dashboard_bloc.dart';
 import '../widgets/empty_goals.dart';
 import '../widgets/goal_card.dart';
@@ -177,9 +176,7 @@ class _Dashboard extends StatelessWidget {
           opacity: state.listLoading ? 0.5 : 1,
           duration: const Duration(milliseconds: 150),
           child: page.items.isEmpty
-              ? NoMatchingGoals(
-                  onClear: () => bloc.add(const DashboardFiltersChanged(GoalFilters.none)),
-                )
+              ? const NoMatchingGoals()
               : CardGrid(
                   children: [
                     for (final plan in page.items)

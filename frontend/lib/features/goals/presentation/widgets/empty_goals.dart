@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/router.dart';
 import '../../../../app/theme/app_theme.dart';
+import '../../../../shared/widgets/elevated_card.dart';
 import '../../domain/entities/goal_type.dart';
 import 'goal_type_icon.dart';
 
@@ -9,7 +10,7 @@ const _youHaventAddedAnyText = 'You haven’t added any goals yet';
 const _createYourFirstGoalText = 'Create your first goal';
 const _orStartFromText = 'Or start from:';
 const _noGoalsMatchTheseText = 'No goals match these filters.';
-const _clearFiltersText = 'Clear filters';
+const _tryOtherFiltersText = 'Try another goal type, currency or timeline.';
 const _addSomethingYouReText =
     'Add something you’re saving for — like a home, a car or retirement. We’ll work out how much to invest each month to get there.';
 
@@ -65,22 +66,26 @@ class EmptyGoals extends StatelessWidget {
   }
 }
 
+/// Empty filtered list. Clearing is done from the filter bar's own button.
 class NoMatchingGoals extends StatelessWidget {
-  const NoMatchingGoals({super.key, required this.onClear});
-
-  final VoidCallback onClear;
+  const NoMatchingGoals({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.layer,
-      padding: const .all(24),
+    return const ElevatedCard(
       child: Row(
         children: [
-          const Expanded(
-            child: Text(_noGoalsMatchTheseText, style: TextStyle(color: AppColors.text2)),
+          Icon(Icons.filter_alt_off_outlined, color: AppColors.gold),
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: .start,
+              children: [
+                Text(_noGoalsMatchTheseText, style: TextStyle(fontWeight: .w600)),
+                Text(_tryOtherFiltersText, style: TextStyle(color: AppColors.text2)),
+              ],
+            ),
           ),
-          TextButton(onPressed: onClear, child: const Text(_clearFiltersText)),
         ],
       ),
     );
