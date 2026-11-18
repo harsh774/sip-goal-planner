@@ -4,8 +4,12 @@ import 'package:go_router/go_router.dart';
 
 import '../core/di/injection.dart';
 import '../features/auth/presentation/bloc/auth_bloc.dart';
+import '../shared/connectivity/connectivity_cubit.dart';
+import '../shared/connectivity/offline_gate.dart';
 import 'router.dart';
 import 'theme/app_theme.dart';
+
+const _appTitleText = 'GoalPlanner';
 
 class App extends StatefulWidget {
   const App({super.key});
@@ -26,13 +30,20 @@ class _AppState extends State<App> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider.value(
-      value: _auth,
-      child: MaterialApp.router(
-        title: 'SIP Goal Planner',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.dark(),
-        routerConfig: _router,
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider.value(value: _auth),
+        BlocProvider(create: (_) => sl<ConnectivityCubit>()),
+      ],
+      // Keeps content clear of phone status bars and notches.
+      child: SafeArea(
+        child: MaterialApp.router(
+          title: _appTitleText,
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.dark(),
+          routerConfig: _router,
+          builder: (_, child) => OfflineGate(child: child ?? const SizedBox.shrink()),
+        ),
       ),
     );
   }

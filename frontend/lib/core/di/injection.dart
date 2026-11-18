@@ -18,7 +18,9 @@ import '../../features/projection/domain/usecases/plan_goals.dart';
 import '../../features/projection/presentation/bloc/plan_preview_cubit.dart';
 import '../../features/projection/presentation/bloc/projection_bloc.dart';
 import '../config/app_config.dart';
+import '../../shared/connectivity/connectivity_cubit.dart';
 import '../network/api_client.dart';
+import '../network/connectivity_service.dart';
 import '../network/dio_client.dart';
 import '../network/session_events.dart';
 import '../storage/token_storage.dart';
@@ -32,6 +34,7 @@ Future<void> configureDependencies() async {
     // Core
     ..registerSingleton(TokenStorage(prefs))
     ..registerSingleton(SessionEvents())
+    ..registerLazySingleton(ConnectivityService.new)
     ..registerLazySingleton(
       () => ApiClient(buildDio(baseUrl: AppConfig.apiBaseUrl, tokens: sl(), session: sl())),
     )
@@ -67,6 +70,7 @@ Future<void> configureDependencies() async {
       ),
     )
     ..registerFactory(() => ProfileCubit(updateName: sl(), changePassword: sl()))
+    ..registerFactory(() => ConnectivityCubit(sl()))
     ..registerFactory(() => DashboardBloc(getGoals: sl(), getSummary: sl(), planGoals: sl()))
     ..registerFactory(() => GoalFormBloc(getGoal: sl(), saveGoal: sl()))
     ..registerFactory(() => PlanPreviewCubit(sl()))

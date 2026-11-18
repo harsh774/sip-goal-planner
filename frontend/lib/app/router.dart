@@ -11,6 +11,7 @@ import '../features/goals/domain/entities/goal_type.dart';
 import '../features/goals/presentation/pages/goal_form_page.dart';
 import '../features/goals/presentation/pages/dashboard_page.dart';
 import '../features/projection/presentation/pages/goal_plan_page.dart';
+import '../shared/widgets/not_found_page.dart';
 import '../shared/widgets/splash_page.dart';
 
 abstract final class Routes {
@@ -30,6 +31,7 @@ GoRouter buildRouter(AuthBloc auth) {
   return GoRouter(
     initialLocation: Routes.splash,
     refreshListenable: _StreamListenable(auth.stream),
+    errorBuilder: (_, state) => NotFoundPage(location: state.uri.path),
     redirect: (context, state) {
       final location = state.matchedLocation;
       final atGate =
@@ -47,7 +49,7 @@ GoRouter buildRouter(AuthBloc auth) {
           location == Routes.login || location == Routes.register ? null : withFrom(Routes.login),
         AuthStatus.authenticated =>
           atGate
-              ? (from != null && (from.startsWith(Routes.goals) || from == Routes.profile)
+              ? (from != null && from.startsWith('/') && !from.startsWith('//')
                     ? from
                     : Routes.goals)
               : null,
