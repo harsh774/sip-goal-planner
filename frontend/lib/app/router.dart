@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/auth/presentation/bloc/auth_bloc.dart';
+import '../features/about/presentation/pages/about_page.dart';
 import '../features/auth/presentation/pages/auth_page.dart';
 import '../features/auth/presentation/pages/profile_page.dart';
 import '../features/goals/domain/entities/goal_type.dart';
@@ -19,6 +20,7 @@ abstract final class Routes {
   static const goals = '/goals';
   static const newGoal = '/goals/new';
   static const profile = '/profile';
+  static const about = '/about';
 
   static String goal(String id) => '/goals/$id';
   static String editGoal(String id) => '/goals/$id/edit';
@@ -36,6 +38,8 @@ GoRouter buildRouter(AuthBloc auth) {
       final from = atGate ? state.uri.queryParameters['from'] : state.uri.toString();
       String withFrom(String path) =>
           from == null ? path : Uri(path: path, queryParameters: {'from': from}).toString();
+
+      if (location == Routes.about) return null;
 
       return switch (auth.state.status) {
         AuthStatus.unknown => location == Routes.splash ? null : withFrom(Routes.splash),
@@ -60,6 +64,7 @@ GoRouter buildRouter(AuthBloc auth) {
         builder: (_, _) => const AuthPage(mode: AuthMode.register),
       ),
       GoRoute(path: Routes.profile, builder: (_, _) => const ProfilePage()),
+      GoRoute(path: Routes.about, builder: (_, _) => const AboutPage()),
       GoRoute(
         path: Routes.goals,
         builder: (_, _) => const DashboardPage(),

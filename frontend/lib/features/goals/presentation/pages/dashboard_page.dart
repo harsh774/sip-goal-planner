@@ -93,8 +93,6 @@ class _DashboardView extends StatelessWidget {
           if (state.status == DashboardStatus.ready) ...[
             const SizedBox(height: 48),
             SipImpactSection(currency: state.totalCurrency),
-            const SizedBox(height: 32),
-            const AboutGoalPlanner(),
           ],
         ],
       ),

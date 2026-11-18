@@ -9,6 +9,8 @@ import '../../core/domain/currency.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import 'app_footer.dart';
 
+const _aboutText = 'About';
+
 const _goalText = 'Goal';
 const _plannerText = 'Planner';
 const _profileAndPasswordText = 'Profile and password';
@@ -60,7 +62,14 @@ class _Header extends StatelessWidget implements PreferredSizeWidget {
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
       padding: const .only(left: 16),
-      child: const Row(children: [AppLogo(), Spacer(), _AccountMenu()]),
+      child: Row(
+        children: [
+          const AppLogo(),
+          const Spacer(),
+          TextButton(onPressed: () => context.push(Routes.about), child: const Text(_aboutText)),
+          const _AccountMenu(),
+        ],
+      ),
     );
   }
 }

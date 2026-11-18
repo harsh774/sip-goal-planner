@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../app/router.dart';
 import '../../app/theme/app_theme.dart';
 import 'disclaimer.dart';
+
+const _aboutLinkText = 'About GoalPlanner';
 
 /// Bottom of every page: the market-risk disclaimer and the copyright line.
 class AppFooter extends StatelessWidget {
@@ -17,6 +21,12 @@ class AppFooter extends StatelessWidget {
       children: [
         const Divider(height: 1, color: AppColors.border),
         Disclaimer(extended: extendedDisclaimer),
+        Center(
+          child: TextButton(
+            onPressed: () => context.push(Routes.about),
+            child: const Text(_aboutLinkText),
+          ),
+        ),
         Text(
           '© ${DateTime.now().year} GoalPlanner. All rights reserved.',
           textAlign: .center,
