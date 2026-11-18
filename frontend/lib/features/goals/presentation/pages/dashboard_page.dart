@@ -141,7 +141,6 @@ class _Dashboard extends StatelessWidget {
         if (state.summary case final summary?)
           SummaryStrip(
             summary: summary,
-            filtered: !filters.isEmpty,
             onCurrencyChanged: (c) => bloc.add(DashboardTotalCurrencyChanged(c)),
           ),
         const SizedBox(height: 32),

@@ -128,15 +128,15 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
        super(const DashboardState()) {
     on<DashboardRequested>(_onRequested, transformer: restartable());
     on<DashboardFiltersChanged>(
-      (e, emit) => _reloadList(emit, state.query.copyWith(filters: e.filters, page: 1), true),
+      (e, emit) => _reloadList(emit, state.query.copyWith(filters: e.filters, page: 1)),
       transformer: restartable(),
     );
     on<DashboardSortChanged>(
-      (e, emit) => _reloadList(emit, state.query.copyWith(sort: e.sort, page: 1), false),
+      (e, emit) => _reloadList(emit, state.query.copyWith(sort: e.sort, page: 1)),
       transformer: restartable(),
     );
     on<DashboardPageChanged>(
-      (e, emit) => _reloadList(emit, state.query.copyWith(page: e.page), false),
+      (e, emit) => _reloadList(emit, state.query.copyWith(page: e.page)),
       transformer: restartable(),
     );
     on<DashboardTotalCurrencyChanged>(_onCurrencyChanged, transformer: restartable());
@@ -164,7 +164,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       Future.wait<Result<Object>>([
         _getGoals(GoalQuery(sort: GoalSort.targetDate, pageSize: reachingSoonCount)),
         _getGoals(state.query),
-        _getSummary(SummaryParams(state.query.filters, event.totalCurrency)),
+        _getSummary(SummaryParams(GoalFilters.none, event.totalCurrency)),
       ]),
       () => emit(state.copyWith(isSlow: true)),
       after: _slowAfter,
@@ -193,28 +193,13 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     );
   }
 
-  Future<void> _reloadList(
-    Emitter<DashboardState> emit,
-    GoalQuery query,
-    bool filtersChanged,
-  ) async {
+  /// Filters, sort and paging change only the list; the totals always cover every goal.
+  Future<void> _reloadList(Emitter<DashboardState> emit, GoalQuery query) async {
     emit(state.copyWith(query: query, listLoading: true, clearFailure: true));
-    final pageResult = _getGoals(query);
-    final summaryResult = filtersChanged
-        ? _getSummary(SummaryParams(query.filters, state.totalCurrency))
-        : null;
-
-    switch (await pageResult) {
-      case Success(value: final page):
-        emit(state.copyWith(page: page.map(_plan)));
-      case Err(:final failure):
-        emit(state.copyWith(listLoading: false, failure: failure));
-        return;
-    }
-    if (await summaryResult case Success(value: final summary)) {
-      emit(state.copyWith(summary: summary));
-    }
-    emit(state.copyWith(listLoading: false));
+    emit(switch (await _getGoals(query)) {
+      Success(value: final page) => state.copyWith(page: page.map(_plan), listLoading: false),
+      Err(:final failure) => state.copyWith(listLoading: false, failure: failure),
+    });
   }
 
   Future<void> _onCurrencyChanged(
@@ -222,7 +207,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     Emitter<DashboardState> emit,
   ) async {
     emit(state.copyWith(totalCurrency: event.currency));
-    final result = await _getSummary(SummaryParams(state.query.filters, event.currency));
+    final result = await _getSummary(SummaryParams(GoalFilters.none, event.currency));
     if (result case Success(value: final summary)) emit(state.copyWith(summary: summary));
   }
 

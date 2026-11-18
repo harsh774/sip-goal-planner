@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/scaled.dart';
 import '../../../../core/format/money_formatter.dart';
+import '../../../../shared/widgets/elevated_card.dart';
 import '../../../projection/domain/engine/projection_calculator.dart';
 import '../../../projection/domain/usecases/plan_goals.dart';
 import 'goal_type_icon.dart';
@@ -31,84 +32,88 @@ class GoalCard extends StatelessWidget {
         : 'or start at ${MoneyFormatter.full(plan.stepUpFirstSip, c)}, rising '
               '${Scaled.formatCompact(goal.annualStepUpBp)}% a year';
 
-    return Material(
-      color: AppColors.layer,
-      child: InkWell(
-        onTap: onOpen,
-        child: Padding(
-          padding: .all(compact ? 20 : 24),
-          child: Column(
-            crossAxisAlignment: .start,
+    return ElevatedCard(
+      onTap: onOpen,
+      padding: .all(compact ? 20 : 24),
+      child: Column(
+        crossAxisAlignment: .start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Icon(goal.type.icon, color: AppColors.gold),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: .start,
-                      children: [
-                        Text(
-                          goal.name,
-                          maxLines: 1,
-                          overflow: .ellipsis,
-                          style: const TextStyle(fontSize: 18, fontWeight: .w600),
-                        ),
-                        Text(
-                          '${MoneyFormatter.short(Scaled.toDouble(goal.targetAmount), c)} by '
-                          '${DateFormats.monthYear.format(goal.targetDate)}',
-                          style: const TextStyle(color: AppColors.text2),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: compact ? 12 : 20),
-              const Text(
-                _investEveryMonthText,
-                style: TextStyle(fontSize: 12, color: AppColors.text2),
-              ),
-              Text(
-                plan.projection.onTrack
-                    ? _nothingMoreNeededText
-                    : MoneyFormatter.full(plan.levelSip, c),
-                style: TextStyle(fontSize: compact ? 24 : 28, fontWeight: .w300),
-              ),
-              if (!compact)
-                Text(stepLine, style: const TextStyle(color: AppColors.text2, fontSize: 13)),
-              const SizedBox(height: 12),
-              LinearProgressIndicator(
-                value: (plan.progressPct / 100).clamp(0, 1),
-                backgroundColor: AppColors.border,
-                color: AppColors.gold,
-                minHeight: 4,
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Saved ${plan.progressPct.toStringAsFixed(plan.progressPct < 10 ? 1 : 0)}%',
-                      style: const TextStyle(fontSize: 12, color: AppColors.text2),
-                    ),
-                  ),
-                  Text(
-                    '${DateFormats.duration(monthsLeft)} left',
-                    style: const TextStyle(fontSize: 12, color: AppColors.text2),
-                  ),
-                ],
-              ),
-              if (!compact) ...[
-                const SizedBox(height: 12),
-                const Align(
-                  alignment: .centerRight,
-                  child: Text(_seeFullPlanText, style: TextStyle(color: AppColors.gold)),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.goldTint,
+                  borderRadius: .circular(12),
+                  border: .all(color: AppColors.gold.withValues(alpha: 0.4)),
                 ),
-              ],
+                child: Icon(goal.type.icon, color: AppColors.gold, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: .start,
+                  children: [
+                    Text(
+                      goal.name,
+                      maxLines: 1,
+                      overflow: .ellipsis,
+                      style: const TextStyle(fontSize: 18, fontWeight: .w600),
+                    ),
+                    Text(
+                      '${MoneyFormatter.short(Scaled.toDouble(goal.targetAmount), c)} by '
+                      '${DateFormats.monthYear.format(goal.targetDate)}',
+                      style: const TextStyle(color: AppColors.text2),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
-        ),
+          SizedBox(height: compact ? 12 : 20),
+          const Text(_investEveryMonthText, style: TextStyle(fontSize: 12, color: AppColors.text2)),
+          Text(
+            plan.projection.onTrack
+                ? _nothingMoreNeededText
+                : MoneyFormatter.full(plan.levelSip, c),
+            style: TextStyle(fontSize: compact ? 24 : 28, fontWeight: .w300),
+          ),
+          if (!compact)
+            Text(stepLine, style: const TextStyle(color: AppColors.text2, fontSize: 13)),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: .circular(4),
+            child: LinearProgressIndicator(
+              value: (plan.progressPct / 100).clamp(0, 1),
+              backgroundColor: AppColors.border,
+              color: AppColors.gold,
+              minHeight: 6,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Saved ${plan.progressPct.toStringAsFixed(plan.progressPct < 10 ? 1 : 0)}%',
+                  style: const TextStyle(fontSize: 12, color: AppColors.text2),
+                ),
+              ),
+              Text(
+                '${DateFormats.duration(monthsLeft)} left',
+                style: const TextStyle(fontSize: 12, color: AppColors.text2),
+              ),
+            ],
+          ),
+          if (!compact) ...[
+            const SizedBox(height: 12),
+            const Align(
+              alignment: .centerRight,
+              child: Text(_seeFullPlanText, style: TextStyle(color: AppColors.gold)),
+            ),
+          ],
+        ],
       ),
     );
   }

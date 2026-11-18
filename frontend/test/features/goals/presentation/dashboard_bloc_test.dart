@@ -144,7 +144,7 @@ void main() {
   );
 
   blocTest<DashboardBloc, DashboardState>(
-    'applying filters resets to page 1 and refreshes the summary for those filters',
+    'applying filters resets to page 1 and leaves the all-goals totals alone',
     setUp: () {
       answerGoals(Success(_page([goalFixture()])));
       answerSummary(Currency.inr);
@@ -155,7 +155,7 @@ void main() {
     verify: (bloc) {
       const filters = GoalFilters(currency: Currency.usd);
       verify(() => getGoals(const GoalQuery(filters: filters))).called(1);
-      verify(() => getSummary(any())).called(1);
+      verifyNever(() => getSummary(any()));
       expect(bloc.state.query.page, 1);
     },
   );
