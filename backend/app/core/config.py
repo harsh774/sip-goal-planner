@@ -32,8 +32,9 @@ class Settings(BaseSettings):
     data_encryption_key: str
     email_hash_key: str
 
-    # Clients that may ask for a transport public key, and how long a replaced key still works.
-    transport_client_ids: str = "web,android"
+    # App versions (the client id) that may ask for a transport public key, and how long a
+    # replaced key still works.
+    transport_client_ids: str = "1.0.0"
     transport_key_grace_hours: int = 24
 
     @field_validator("jwt_secret")

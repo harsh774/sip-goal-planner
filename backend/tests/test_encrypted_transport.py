@@ -4,6 +4,7 @@ from urllib.parse import urlencode
 
 from sqlalchemy import text
 
+from app.core.config import get_settings
 from app.core.transport_crypto import (
     open_sealed,
     request_aad,
@@ -16,7 +17,7 @@ from app.services.transport_keys import TransportKeyService
 from tests.conftest import API, auth_headers, goal_payload
 
 
-def _public_key(client, client_id="web"):
+def _public_key(client, client_id="1.0.0"):
     return client.get(f"{API}/crypto/public-key", params={"client_id": client_id}).json()
 
 
@@ -47,13 +48,14 @@ def _encrypted(client, method, path, key, *, body=None, form=None, query=None, h
     return response, plain
 
 
-def test_public_key_is_versioned_per_client_and_stable(client):
+def test_public_key_is_versioned_per_app_version_and_stable(client, monkeypatch):
+    monkeypatch.setattr(get_settings(), "transport_client_ids", "1.0.0,0.9.0")
     first = _public_key(client)
     again = _public_key(client)
 
     assert first["key_version"] == 1 and first == again
     assert first["algorithm"] == "RSA-OAEP-SHA256+AES-256-GCM"
-    assert _public_key(client, "android")["public_key"] != first["public_key"]
+    assert _public_key(client, "0.9.0")["public_key"] != first["public_key"]
     unknown = client.get(f"{API}/crypto/public-key", params={"client_id": "nope"})
     assert unknown.status_code == 404
 
@@ -102,7 +104,7 @@ def test_tampered_or_replayed_payload_is_rejected(client):
         f"{API}/goals",  # sealed for /auth/register, sent to /goals
         content=sealed,
         headers={
-            "X-Enc-Client": "web",
+            "X-Enc-Client": "1.0.0",
             "X-Enc-Key-Version": str(key["key_version"]),
             "X-Enc-Key": wrap_key(key["public_key"], aes),
             "X-Enc-Content-Type": "application/json",
@@ -116,12 +118,12 @@ def test_tampered_or_replayed_payload_is_rejected(client):
 def test_rotation_keeps_retired_keys_for_the_grace_period_then_revoked_ones_fail(client):
     old = _public_key(client)
     with SessionLocal() as db:
-        TransportKeyService(db).rotate("web")
+        TransportKeyService(db).rotate("1.0.0")
     new = _public_key(client)
 
     still_ok, _ = _encrypted(client, "GET", "/goals", old, headers=auth_headers(client))
     with SessionLocal() as db:
-        TransportKeyService(db).revoke("web", old["key_version"])
+        TransportKeyService(db).revoke("1.0.0", old["key_version"])
     rejected, _ = _encrypted(client, "GET", "/goals", old)
 
     assert new["key_version"] == old["key_version"] + 1

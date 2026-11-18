@@ -19,7 +19,8 @@ class PublicKeyOut(BaseModel):
 
 @router.get("/public-key", response_model=PublicKeyOut)
 def public_key(client_id: Annotated[str, Query(min_length=1, max_length=50)], db: DbSession):
-    """The client's current RSA public key (SPKI DER, base64) for wrapping per-request AES keys.
+    """The RSA public key (SPKI DER, base64) for an app version, used to wrap per-request
+    AES keys. `client_id` is the app version from its pubspec.yaml, e.g. `1.0.0`.
 
     Public: a public key is safe to share. Send the returned `key_version` with each
     encrypted request; a `409 key_version_stale` means fetch this again.

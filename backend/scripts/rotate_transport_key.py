@@ -1,7 +1,7 @@
 """Rotate (or revoke) a client's transport encryption key.
 
-    uv run python scripts/rotate_transport_key.py web            # new version; old one retired
-    uv run python scripts/rotate_transport_key.py web --revoke 3 # stop accepting version 3 now
+    uv run python scripts/rotate_transport_key.py 1.0.0            # new key; old one retired
+    uv run python scripts/rotate_transport_key.py 1.0.0 --revoke 3 # stop accepting key v3 now
 
 Retired keys keep working for TRANSPORT_KEY_GRACE_HOURS so in-flight clients aren't cut off.
 """

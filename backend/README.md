@@ -104,17 +104,17 @@ All routes are under `/api/v1`. Everything except register and login needs `Auth
 
 Requests carrying `X-Enc-Key` are decrypted by `app/api/encrypted_transport.py` and their
 responses encrypted with the same per-request AES key (RSA-OAEP-SHA256 key wrap,
-AES-256-GCM payloads). Public keys: `GET /api/v1/crypto/public-key?client_id=web`.
+AES-256-GCM payloads). Public keys: `GET /api/v1/crypto/public-key?client_id=1.0.0` (the app version).
 Protocol and key lifecycle: `docs/LLD.md` §5a.
 
 ```bash
-uv run python scripts/rotate_transport_key.py web            # new version, old one retired
-uv run python scripts/rotate_transport_key.py web --revoke 1 # reject version 1 now
+uv run python scripts/rotate_transport_key.py 1.0.0            # new key version, old one retired
+uv run python scripts/rotate_transport_key.py 1.0.0 --revoke 1 # reject key version 1 now
 ```
 
 | Variable | Default | |
 |---|---|---|
-| `TRANSPORT_CLIENT_IDS` | `web,android` | clients allowed a key |
+| `TRANSPORT_CLIENT_IDS` | `1.0.0` | app versions (from the app's `pubspec.yaml`) allowed a key |
 | `TRANSPORT_KEY_GRACE_HOURS` | `24` | how long a retired key still works |
 
 ## Data conventions

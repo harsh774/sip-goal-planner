@@ -318,7 +318,7 @@ Toggled by the lock button in the nav bar; Swagger and plain clients are unaffec
 
 | Step | Who | What |
 |---|---|---|
-| 1 | client | `GET /crypto/public-key?client_id=web\|android` → `{key_version, public_key}` (RSA-3072, SPKI DER base64). Cached until the server says it's stale. |
+| 1 | client | `GET /crypto/public-key?client_id=<app version>` (from `pubspec.yaml`, e.g. `1.0.0`) → `{key_version, public_key}` (RSA-3072, SPKI DER base64). Cached until the server says it's stale. |
 | 2 | client | Per request: random AES-256 key; body sealed with AES-256-GCM (AAD `req:METHOD:/path`), query sealed with AAD `req:METHOD:/path?`; key wrapped with RSA-OAEP-SHA256. |
 | 3 | client | Sends `X-Enc-Client`, `X-Enc-Key-Version`, `X-Enc-Key`, `X-Enc-Content-Type`, `X-Enc-Query`; body = sealed payload. |
 | 4 | server | `EncryptedTransportMiddleware` unwraps the key with that version's private key, restores the body, content type and query, runs the request normally. |
@@ -328,11 +328,13 @@ Toggled by the lock button in the nav bar; Swagger and plain clients are unaffec
 Sealed format: `base64(nonce[12] || ciphertext || tag[16])`. The AAD binds a payload to its
 method and path, so it can't be replayed against another endpoint.
 
-**Keys and rotation.** `transport_keys` holds one row per (client, version): the public key,
+**Keys and rotation.** The client id is the app version, so each release has its own keys and
+retiring an old release means revoking its key; `TRANSPORT_CLIENT_IDS` lists the supported
+versions. `transport_keys` holds one row per (client, key version): the public key,
 the private key (encrypted at rest with `DATA_ENCRYPTION_KEY`), and a status:
 
 - `active`: handed out by step 1; at most one per client (partial unique index).
-- `retired`: replaced by `scripts/rotate_transport_key.py <client>`; still accepted for
+- `retired`: replaced by `scripts/rotate_transport_key.py <app version>`; still accepted for
   `TRANSPORT_KEY_GRACE_HOURS` (24) so in-flight clients aren't cut off.
 - `revoked`: `--revoke <version>`; rejected at once.
 

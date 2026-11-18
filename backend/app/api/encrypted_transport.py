@@ -1,7 +1,7 @@
 """Decrypts encrypted requests and encrypts their responses (see app/core/transport_crypto).
 
 A request opts in by sending these headers:
-  X-Enc-Client        client id ("web", "android")
+  X-Enc-Client        client id: the app version, e.g. "1.0.0"
   X-Enc-Key-Version   version of the public key used
   X-Enc-Key           the per-request AES key, wrapped with that RSA public key
   X-Enc-Content-Type  the body's real content type (when there is a body)
