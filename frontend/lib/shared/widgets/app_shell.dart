@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/router.dart';
-
 import '../../app/theme/app_theme.dart';
 import '../../core/domain/currency.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
@@ -11,7 +10,6 @@ import 'app_footer.dart';
 import 'encryption_toggle.dart';
 
 const _aboutText = 'About';
-
 const _goalText = 'Goal';
 const _plannerText = 'Planner';
 const _profileAndPasswordText = 'Profile and password';
@@ -21,13 +19,7 @@ const _accountMenuText = 'Account menu';
 /// Page frame from the design: black header with the account menu, centred
 /// content up to 1120 px, and the footer pinned to the bottom of short pages.
 class AppShell extends StatelessWidget {
-  const AppShell({
-    super.key,
-    required this.child,
-    this.extendedDisclaimer = false,
-    this.bottomBar,
-    this.showAboutLink = true,
-  });
+  const AppShell({super.key, required this.child, this.extendedDisclaimer = false, this.bottomBar});
 
   final Widget child;
   final bool extendedDisclaimer;
@@ -35,13 +27,10 @@ class AppShell extends StatelessWidget {
   /// Pinned under the scrolling content, e.g. the plan preview on phones.
   final Widget? bottomBar;
 
-  /// Off on the About page itself.
-  final bool showAboutLink;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: _Header(showAboutLink: showAboutLink),
+      appBar: const _Header(),
       bottomNavigationBar: bottomBar,
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -58,9 +47,7 @@ class AppShell extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget implements PreferredSizeWidget {
-  const _Header({required this.showAboutLink});
-
-  final bool showAboutLink;
+  const _Header();
 
   @override
   Size get preferredSize => const Size.fromHeight(48);
@@ -74,16 +61,7 @@ class _Header extends StatelessWidget implements PreferredSizeWidget {
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
       padding: const .only(left: 16),
-      child: Row(
-        children: [
-          const AppLogo(),
-          const Spacer(),
-          const EncryptionToggle(),
-          if (showAboutLink)
-            TextButton(onPressed: () => context.push(Routes.about), child: const Text(_aboutText)),
-          const _AccountMenu(),
-        ],
-      ),
+      child: const Row(children: [AppLogo(), Spacer(), _AccountMenu()]),
     );
   }
 }
@@ -151,6 +129,13 @@ class _AccountMenu extends StatelessWidget {
           onPressed: () => context.push(Routes.profile),
           child: const Text(_profileAndPasswordText),
         ),
+        const EncryptionMenuItem(),
+        MenuItemButton(
+          leadingIcon: const Icon(Icons.info_outline, size: 18),
+          onPressed: () => context.push(Routes.about),
+          child: const Text(_aboutText),
+        ),
+        const Divider(height: 1),
         MenuItemButton(
           leadingIcon: const Icon(Icons.logout, size: 18),
           onPressed: () => context.read<AuthBloc>().add(const AuthLogoutRequested()),

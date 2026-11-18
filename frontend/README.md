@@ -115,7 +115,7 @@ lib/
 - **Each goal keeps its own currency.** "My goals" can show the total in any currency.
   - The server adds it up (`GET /goals/summary`) using a fixed snapshot of ECB reference rates dated 18 Nov 2026 (`backend/app/services/fx.py`), with AED from its USD peg.
   - The total is labelled approximate. Live rates would be the next step.
-- **Optional encrypted payloads.** The lock button in the nav bar seals each request and response (AES-256-GCM, key wrapped with the server's RSA key). The client id is the app version from `pubspec.yaml`. Protocol: `../docs/LLD.md` §5a.
+- **Optional encrypted payloads.** The "Encrypted traffic" switch in the account menu (a lock button on the login page) seals each request and response (AES-256-GCM, key wrapped with the server's RSA key). The client id is the app version from `pubspec.yaml`. Protocol: `../docs/LLD.md` §5a.
 - **Offline.** On web the browser's online/offline events drive the offline page; on Android, connectivity_plus.
 - **The token is stored in localStorage** (`shared_preferences` on web).
   - Simple, and it survives a reload. The risk is that an XSS bug in the app could read it.

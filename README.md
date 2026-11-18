@@ -40,7 +40,7 @@ Register in the app, add a goal, and open its plan. Android: `flutter run` on an
 Flutter app ──HTTPS, JSON (money as strings), Bearer JWT──▶ FastAPI ──▶ PostgreSQL
   │ all numbers on screen come from the Dart engine           │ goals, users, history (personal data encrypted at rest)
   └ optional: payloads sealed with AES-256-GCM, key wrapped   └ same engine in Python for /goals/{id}/projection
-    with the server's RSA key (lock button in the nav bar)
+    with the server's RSA key (switch in the account menu)
 ```
 
 - **Maths:** effective monthly rate `(1+R)^(1/12) − 1`, SIP paid at the start of each month, step-up once a year. The Python and Dart engines are held identical by the shared vectors.

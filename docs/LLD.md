@@ -496,7 +496,7 @@ Confirm-password matching is client-only.
 
 On top of HTTPS, the app can seal every request and response body (and query string) so
 that anything terminating TLS in between — a proxy, a logging layer — sees only ciphertext.
-Toggled by the lock button in the nav bar; Swagger and plain clients are unaffected.
+Toggled by the "Encrypted traffic" switch in the account menu (a lock button on the login and sign-up pages, which have no menu); Swagger and plain clients are unaffected.
 
 | Step | Who | What |
 |---|---|---|
