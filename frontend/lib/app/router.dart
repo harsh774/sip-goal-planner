@@ -27,14 +27,20 @@ GoRouter buildRouter(AuthBloc auth) {
     initialLocation: Routes.splash,
     refreshListenable: _StreamListenable(auth.stream),
     redirect: (context, state) {
-      final status = auth.state.status;
       final location = state.matchedLocation;
-      final onAuthPage = location == Routes.login || location == Routes.register;
+      final atGate =
+          location == Routes.splash || location == Routes.login || location == Routes.register;
+      // Remember where a deep link or refresh was heading, across the splash and login pages.
+      final from = atGate ? state.uri.queryParameters['from'] : state.uri.toString();
+      String withFrom(String path) =>
+          from == null ? path : Uri(path: path, queryParameters: {'from': from}).toString();
 
-      return switch (status) {
-        AuthStatus.unknown => location == Routes.splash ? null : Routes.splash,
-        AuthStatus.unauthenticated => onAuthPage ? null : Routes.login,
-        AuthStatus.authenticated => onAuthPage || location == Routes.splash ? Routes.goals : null,
+      return switch (auth.state.status) {
+        AuthStatus.unknown => location == Routes.splash ? null : withFrom(Routes.splash),
+        AuthStatus.unauthenticated =>
+          location == Routes.login || location == Routes.register ? null : withFrom(Routes.login),
+        AuthStatus.authenticated =>
+          atGate ? (from != null && from.startsWith(Routes.goals) ? from : Routes.goals) : null,
       };
     },
     routes: [
