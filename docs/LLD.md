@@ -1,6 +1,6 @@
 # SIP Goal Planner — Low-Level Design
 
-Status: draft. Read with [HLD.md](HLD.md). Items marked *(decision)* are open to change.
+Status: implemented. Read with [HLD.md](HLD.md).
 
 ## 1. Financial maths
 
@@ -123,26 +123,30 @@ Target 1,00,00,000, 144 months, `C0` = 20,000, `R` = 12%, `π` = 6%:
 ```
 backend/
   app/
-    main.py              app, routers, exception handlers, CORS
-    core/config.py       settings from env (pydantic-settings)
-    core/security.py     bcrypt hashing, JWT encode/decode
-    core/crypto.py       AES-256-GCM encrypt/decrypt, HMAC email index
-    db/session.py        engine, SessionLocal, get_db
-    db/types.py          EncryptedText, EncryptedJSON (SQLAlchemy TypeDecorators)
-    models/              User, Goal, GoalLog, enums.py
-    schemas/             Pydantic models; money.py (string ↔ int hundredths)
-    api/deps.py          get_current_user
-    api/routes/auth.py
-    api/routes/goals.py
-    services/goal_service.py   create/update/delete + writes GoalLog in the same transaction
-    services/projection.py
-  alembic/
+    main.py                  app, routers, exception handlers, CORS, encrypted-payload middleware
+    core/config.py           settings from env (pydantic-settings)
+    core/security.py         bcrypt hashing, JWT encode/decode
+    core/crypto.py           AES-256-GCM column encryption, HMAC email index
+    core/transport_crypto.py RSA-OAEP key wrap, AES-GCM sealing for payloads (§5a)
+    db/session.py            engine, SessionLocal, get_db
+    db/types.py              EncryptedText, EncryptedJSON (SQLAlchemy TypeDecorators)
+    models/                  User, Goal, GoalLog, TransportKey, enums.py
+    schemas/                 Pydantic models; money.py (string ↔ int hundredths);
+                             goal_query.py (filters, search, paging, summary)
+    api/deps.py              get_current_user, service dependencies
+    api/encrypted_transport.py  ASGI middleware (§5a)
+    api/routes/              auth.py, goals.py, crypto.py
+    repositories/            UserRepository, GoalRepository, GoalLogRepository
+    services/                auth_service, goal_service (+ history, search, summary),
+                             projection (pure), fx (dated rate table), transport_keys
+  alembic/versions/          0001 schema · 0002 first/last name · 0003 optional last name ·
+                             0004 inflation default 2% · 0005 transport_keys
+  scripts/                   generate_secrets.py, rotate_transport_key.py, create_test_db.sql
   tests/
   Dockerfile
-frontend/                Flutter web app (§6)
-shared/
-  projection_vectors.json
-docker-compose.yml       db + api
+frontend/                    Flutter app, web and Android (§6)
+shared/projection_vectors.json
+docker-compose.yml           db + api
 docs/
 ```
 
@@ -157,6 +161,7 @@ Defined once in Python (`app/models/enums.py`) as `StrEnum`s and stored as nativ
 | `currency_code` | `Currency` | `INR`, `USD`, `EUR`, `GBP`, `AED`, `SGD`, `AUD`, `CAD`, `JPY`, `CNY`, `BRL` |
 | `goal_type` | `GoalType` | `home`, `education`, `retirement`, `car`, `wedding`, `travel`, `emergency_fund`, `other` |
 | `goal_action` | `GoalAction` | `created`, `updated`, `deleted` |
+| `transport_key_status` | `TransportKeyStatus` | `active`, `retired`, `revoked` |
 
 - The initial Alembic migration creates all types before the tables; downgrade drops them after.
 - Adding a value later needs its own migration with `ALTER TYPE ... ADD VALUE` (autogenerate does not detect enum value changes).
@@ -195,7 +200,7 @@ Defined once in Python (`app/models/enums.py`) as `StrEnum`s and stored as nativ
 | `email_hash` | text | unique |
 | `password_hash` | text | bcrypt |
 | `first_name` | text | encrypted; required at registration (1–50 chars) |
-| `last_name` | text | encrypted; required at registration (1–50 chars). Migration 0002 split existing display names into these two columns. |
+| `last_name` | text, nullable | encrypted; optional (≤ 50 chars). Migration 0002 split existing display names into first/last; 0003 made it nullable. |
 | `default_currency` | `currency_code` | default `INR`. Pre-fills new goals and the My goals total. |
 | `created_at` | timestamptz | default now() |
 
@@ -236,17 +241,186 @@ One row per change to a goal, written by `goal_service` in the same transaction 
 - An update that changes nothing writes no log row.
 - Logs are append-only: no update or delete endpoint.
 
+### transport_keys
+
+RSA key pairs for encrypted payloads (§5a), one row per (client, version).
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid (v7) | PK |
+| `client_id` | text | the app version, e.g. `1.0.0` |
+| `version` | integer | unique together with `client_id` |
+| `public_key` | text | SPKI DER, base64 |
+| `private_key` | text | PKCS#8 PEM, **encrypted** (`EncryptedText`) |
+| `status` | `transport_key_status` | at most one `active` per client (partial unique index) |
+| `created_at` | timestamptz | default now() |
+| `retired_at` | timestamptz | set on rotation; a retired key still works for `TRANSPORT_KEY_GRACE_HOURS` |
+
+### Entity-relationship diagram
+
+```mermaid
+erDiagram
+    users ||--o{ goals : owns
+    users ||--o{ goal_logs : "made change"
+    goals ||--o{ goal_logs : "history of"
+
+    users {
+        uuid id PK "UUIDv7"
+        text email "encrypted"
+        text email_hash UK "HMAC-SHA256"
+        text password_hash "bcrypt"
+        text first_name "encrypted"
+        text last_name "encrypted, nullable"
+        currency_code default_currency
+        timestamptz created_at
+    }
+    goals {
+        uuid id PK "UUIDv7"
+        uuid user_id FK "ON DELETE RESTRICT"
+        text name "encrypted"
+        goal_type goal_type
+        currency_code currency "fixed at create"
+        bigint target_amount "hundredths"
+        date target_date
+        bigint current_corpus "hundredths"
+        bigint expected_return_bp
+        bigint annual_step_up_bp
+        bigint inflation_bp "default 200"
+        timestamptz created_at
+        timestamptz updated_at
+        timestamptz deleted_at "soft delete"
+    }
+    goal_logs {
+        uuid id PK "UUIDv7, orders history"
+        uuid goal_id FK
+        uuid user_id FK
+        goal_action action
+        text changes "encrypted JSON"
+        timestamptz created_at
+    }
+    transport_keys {
+        uuid id PK
+        text client_id "app version"
+        int version "unique per client"
+        text public_key
+        text private_key "encrypted"
+        transport_key_status status
+        timestamptz created_at
+        timestamptz retired_at
+    }
+```
+
+### Backend class diagram
+
+Routes are thin; services hold the rules; repositories own every query (always scoped to the user, skipping deleted rows).
+
+```mermaid
+classDiagram
+    direction LR
+    class AuthRoutes {
+        register()
+        login()
+        me()
+        update_me()
+        change_password()
+    }
+    class GoalRoutes {
+        list_goals(GoalListParams)
+        summary(GoalSummaryParams)
+        create, get, update, delete
+        history(goal_id)
+        projection(goal_id, as_of)
+    }
+    class CryptoRoutes {
+        public_key(client_id)
+    }
+    class AuthService {
+        register(RegisterIn) User
+        authenticate(email, password) User
+        update_profile(User, UserUpdate) User
+        change_password(User, PasswordChange)
+    }
+    class GoalService {
+        page(User, GoalListParams) GoalPage
+        summary(User, GoalSummaryParams) GoalTotals
+        create, get, update, delete
+        history(User, goal_id) list
+        -_search(User, GoalListParams) GoalPage
+    }
+    class TransportKeyService {
+        active(client_id) TransportKey
+        rotate(client_id) TransportKey
+        revoke(client_id, version)
+        private_key(client_id, version) RSAPrivateKey
+    }
+    class ProjectionEngine {
+        <<module>>
+        project(ProjectionInput) Projection
+        round_money(x) float
+    }
+    class FxTable {
+        <<module>>
+        convert(amount, source, target) float
+    }
+    class UserRepository {
+        get(user_id)
+        get_by_email_hash(email_hash)
+        add(user)
+    }
+    class GoalRepository {
+        page_for_user(user_id, filters, sort, offset, limit)
+        all_matching(user_id, filters, sort)
+        get_for_user(goal_id, user_id)
+        add(goal)
+    }
+    class GoalLogRepository {
+        add(entry)
+        list_for_goal(goal_id)
+    }
+    class EncryptedTransportMiddleware {
+        <<ASGI>>
+        __call__(scope, receive, send)
+    }
+    class Crypto {
+        encrypt(text) str
+        decrypt(token) str
+        email_hash(email) str
+    }
+    class User
+    class Goal
+    class GoalLog
+    class TransportKey
+
+    AuthRoutes --> AuthService
+    GoalRoutes --> GoalService
+    CryptoRoutes --> TransportKeyService
+    EncryptedTransportMiddleware --> TransportKeyService
+    AuthService --> UserRepository
+    AuthService --> Crypto
+    GoalService --> GoalRepository
+    GoalService --> GoalLogRepository
+    GoalService --> ProjectionEngine
+    GoalService --> FxTable
+    UserRepository --> User
+    GoalRepository --> Goal
+    GoalLogRepository --> GoalLog
+    TransportKeyService --> TransportKey
+    User "1" --> "*" Goal
+    Goal "1" --> "*" GoalLog
+```
+
 ## 4. API
 
-Base path `/api/v1` *(decision)*. All routes except register and login require `Authorization: Bearer <token>`.
+Base path `/api/v1`. All routes except register and login require `Authorization: Bearer <token>`.
 
 | Method | Path | Request | Success | Errors |
 |---|---|---|---|---|
 | POST | `/auth/register` | `{first_name, last_name, email, password}` | 201 `User` | 409 `email_taken`, 422 |
 | POST | `/auth/login` | form `username`, `password` (OAuth2) | 200 `{access_token, token_type}` | 401 |
 | GET | `/auth/me` | — | 200 `User` | 401 |
-| PATCH | `/auth/me` | `{default_currency?, first_name?, last_name?}` | 200 `User` | 401, 422 |
-| GET | `/goals` | query: `page` (≥1), `page_size` (1–100, default 10), `sort` (`newest` \| `target_date` \| `target_amount`), filters `currency`, `goal_type`, `min_target_amount`, `max_target_amount`, `target_year_from`, `target_year_to` | 200 `{items: [Goal], page, page_size, total, total_pages}` | 401, 422 |
+| PATCH | `/auth/me` | `{default_currency?, first_name?, last_name?}`; an empty `last_name` clears it | 200 `User` | 401, 422 |
+| POST | `/auth/me/password` | `{current_password, new_password}` | 204 | 401, 422 `password_incorrect`, `password_unchanged`, `password_weak` |
+| GET | `/goals` | query: `page` (≥1), `page_size` (1–100, default 10), `sort` (`newest` \| `target_date` \| `target_amount`), filters `currency`, `goal_type`, `min_target_amount`, `max_target_amount`, `target_year_from`, `target_year_to`; `q` (≤ 100 chars) matches goal names, case-insensitive | 200 `{items: [Goal], page, page_size, total, total_pages}` | 401, 422 |
 | GET | `/goals/summary` | same filters, plus `in_currency` (default: the user's) and `as_of` | 200 `{count, currency, total_monthly_sip, total_target, converted, rates_as_of}` | 401, 422 |
 | POST | `/goals` | `GoalCreate` | 201 `Goal` | 401, 422 |
 | GET | `/goals/{id}` | — | 200 `Goal` | 401, 404 |
@@ -254,10 +428,12 @@ Base path `/api/v1` *(decision)*. All routes except register and login require `
 | DELETE | `/goals/{id}` | — | 204 (soft delete + `deleted` log) | 401, 404 |
 | GET | `/goals/{id}/history` | — | 200 `[GoalLogEntry]`, oldest first | 401, 404 |
 | GET | `/goals/{id}/projection` | — | 200 `Projection` | 401, 404 |
+| GET | `/crypto/public-key` | query `client_id` (the app version); no auth | 200 `{client_id, key_version, algorithm, public_key}` | 400 `client_unknown` |
 
 - `User` = `{id, email, first_name, last_name, default_currency}`.
 - Amount filters compare raw amounts in each goal's own currency, so the client enables them only when a currency filter is set. Year filters become date bounds, so the `(user_id, target_date)` index can be used.
-- The dashboard makes three calls: `sort=target_date&page_size=3` for "Reaching soon", the filtered page, and `/goals/summary` with the same filters.
+- The dashboard makes three calls: `sort=target_date&page_size=3` for "Reaching soon", the filtered/searched page, and `/goals/summary` **without** filters, so the totals always cover every goal. Filter, sort, page and search changes reload only the list.
+- Search: names are encrypted, so the plain filters run in SQL and names are matched after decryption, then paged in Python (HLD D15).
 - `Goal` = `{id, name, goal_type, currency, target_amount, target_date, current_corpus, expected_return_pct, annual_step_up_pct, inflation_pct, created_at, updated_at}`; amounts and percentages are strings (§1.3).
 - `GoalCreate` includes `currency` (defaults to the user's `default_currency`); `GoalUpdate` rejects `currency`.
 - `GoalLogEntry` = `{id, action, changes, created_at}`.
@@ -308,6 +484,12 @@ Server returns `{"detail": [{"field", "code", "message"}]}`. The client maps eac
 | `currency`, `default_currency` | allowed value | `currency_invalid` | "Unsupported currency." |
 | `currency` on PATCH goal | not allowed | `currency_locked` | "A goal's currency can't be changed. Create a new goal instead." |
 
+| `first_name` | 1–50 chars, trimmed | `name_required`, `name_too_long` | "Enter your first name." |
+| `last_name` | optional, ≤ 50 chars | `name_too_long` | "Use at most 50 characters." |
+| `current_password` | matches the stored hash | `password_incorrect` | "Current password is incorrect." |
+| `new_password` | differs from the current one | `password_unchanged` | "Choose a different password." |
+| `q` (search) | ≤ 100 chars | `search_too_long` | "Search with at most 100 characters." |
+
 Confirm-password matching is client-only.
 
 ## 5a. Encrypted payloads (trial, off by default)
@@ -352,7 +534,7 @@ Headers, method and path stay visible.
 **At-rest keys.** Column ciphertext carries a `v1:` prefix, but `DATA_ENCRYPTION_KEY`
 rotation (keyring + re-encryption job) is not implemented yet.
 
-## 6. Client (Flutter web)
+## 6. Client (Flutter: web and Android)
 
 ### 6.1 Structure
 
@@ -360,65 +542,116 @@ Clean architecture, feature-first. Dependencies point inward: `presentation → 
 
 ```
 frontend/lib/
-  main.dart                     bootstraps DI, runs App
+  main.dart                       bootstraps DI, runs App
   app/
-    app.dart                    MaterialApp.router, global BlocProviders
-    router.dart                 go_router; redirects on AuthBloc state
-    theme/                      design tokens (§6.2), ThemeData
+    app.dart                      MaterialApp.router inside SafeArea; AuthBloc + ConnectivityCubit; OfflineGate
+    router.dart                   go_router; redirects on AuthBloc state; keeps deep links via ?from=; 404 errorBuilder
+    theme/                        design tokens (§6.2), ThemeData
   core/
-    di/injection.dart           get_it registrations (manual, no codegen)
-    network/
-      dio_client.dart           builds the Dio instance
-      api_client.dart           get/post/patch/delete wrapper used by datasources
-      interceptors/
-        auth_interceptor.dart   adds Authorization: Bearer <token>
-        unauthorized_interceptor.dart  on 401: clear token, notify session stream
-      api_exception.dart        typed exceptions thrown by ApiClient
-      endpoints.dart            path constants
-    error/
-      failure.dart              sealed Failure hierarchy (domain-facing)
-      result.dart               sealed Result<T> = Success<T> | Err<T>(Failure)
-    storage/token_storage.dart  shared_preferences wrapper
-    format/money_formatter.dart formatMoney(amount, Currency)
-    usecase/usecase.dart        abstract UseCase<T, Params>
+    di/injection.dart             get_it registrations
+    config/app_config.dart        API_BASE_URL (10.0.2.2 on the Android emulator)
+    network/                      dio_client, api_client, remote_call (remoteObject / remoteVoid), guard,
+                                  api_exception, endpoints, connectivity_service,
+                                  interceptors/{auth, unauthorized, encryption}
+    security/                     encryption_settings, hybrid_cipher, transport_key_source
+    domain/                       currency, scaled (string ↔ int hundredths), rounding
+    format/                       money_formatter, amount_words
+    presentation/                 event_transformers (debounce), haptics, slow_notice
+    error/                        failure.dart (sealed), result.dart (Success | Err)
+    storage/                      token_storage
+    usecase/                      UseCase<T, Params>
   features/
-    auth/
-      data/
-        datasources/auth_remote_datasource.dart
-        models/user_model.dart, token_model.dart      JSON ↔ entity
-        repositories/auth_repository_impl.dart
-      domain/
-        entities/user.dart, currency.dart
-        repositories/auth_repository.dart             abstract
-        usecases/login.dart, register.dart, get_me.dart, logout.dart,
-                 update_default_currency.dart
-      presentation/
-        bloc/auth_bloc.dart (+ _event, _state)
-        pages/login_page.dart, register_page.dart
-        widgets/
-    goals/
-      data/      datasources/goals_remote_datasource.dart, models/, repositories/
-      domain/    entities/goal.dart, goal_type.dart, money.dart (int hundredths +
-                          Currency; parse/format API strings)
-                 repositories/goals_repository.dart
-                 usecases/get_goals.dart, get_goal.dart, create_goal.dart,
-                          update_goal.dart, delete_goal.dart
-      presentation/
-        bloc/goal_list_bloc.dart, goal_form_bloc.dart
-        pages/goal_list_page.dart, goal_form_page.dart
-        widgets/
-    projection/
-      domain/                   no data layer: nothing here calls the network
-        entities/projection.dart, schedule_row.dart, plan.dart, goal_totals.dart
-        engine/projection_calculator.dart   Dart engine (§1), pure
-        fx/fx_rates.dart                    fixed rates table + as-of date
-        usecases/calculate_projection.dart, calculate_goal_totals.dart
-      presentation/
-        bloc/projection_bloc.dart, plan_preview_cubit.dart
-        pages/goal_plan_page.dart
-        widgets/ chart, yearly table, comparison table, explainer
-  shared/widgets/               disclaimer, loading skeleton, empty view,
-                                error view + retry, slow-network notice
+    auth/        data · domain · presentation   auth_page, profile_page; AuthBloc, ProfileCubit
+    goals/       data · domain · presentation   dashboard_page, goal_form_page; DashboardBloc, GoalFormBloc;
+                                                goal_query (filters, search, Paged), GoalFormValidator
+    projection/  domain · presentation          engine, CalculateProjection, PlanGoals; goal_plan_page;
+                                                ProjectionBloc, PlanPreviewCubit (no data layer)
+    about/       presentation                   about_page, SIP impact examples
+  shared/
+    connectivity/                 ConnectivityCubit, OfflineGate and OfflinePage
+    widgets/                      app_shell, app_footer, elevated_card, gold_button, loading_visuals,
+                                  state_views, encryption_toggle, not_found_page, world_network_background
+```
+
+### Client class diagram
+
+One feature end to end (goals); auth and projection follow the same shape.
+
+```mermaid
+classDiagram
+    direction LR
+    class DashboardPage
+    class DashboardBloc {
+        DashboardRequested
+        DashboardFiltersChanged
+        DashboardSearchChanged
+        DashboardSortChanged
+        DashboardPageChanged
+        DashboardTotalCurrencyChanged
+    }
+    class GetGoals {
+        call(GoalQuery) Result
+    }
+    class GetGoalsSummary {
+        call(SummaryParams) Result
+    }
+    class PlanGoals {
+        call(goals) GoalPlan list
+    }
+    class ProjectionCalculator {
+        <<engine>>
+        project(ProjectionInput) Projection
+    }
+    class GoalsRepository {
+        <<interface>>
+        list(GoalQuery)
+        summary(GoalFilters, Currency)
+        get, create, update, delete
+    }
+    class GoalsRepositoryImpl
+    class GoalsRemoteDataSource {
+        list, summary, get, create, update, delete
+    }
+    class ApiClient {
+        get, post, postForm, patch, delete
+    }
+    class EncryptionInterceptor
+    class AuthInterceptor
+    class UnauthorizedInterceptor
+    class TransportKeySource {
+        current() TransportKey
+        invalidate()
+    }
+
+    DashboardPage --> DashboardBloc
+    DashboardBloc --> GetGoals
+    DashboardBloc --> GetGoalsSummary
+    DashboardBloc --> PlanGoals
+    PlanGoals --> ProjectionCalculator
+    GetGoals --> GoalsRepository
+    GetGoalsSummary --> GoalsRepository
+    GoalsRepositoryImpl ..|> GoalsRepository
+    GoalsRepositoryImpl --> GoalsRemoteDataSource : guard to Result
+    GoalsRemoteDataSource --> ApiClient : remoteObject
+    ApiClient --> EncryptionInterceptor
+    ApiClient --> AuthInterceptor
+    ApiClient --> UnauthorizedInterceptor
+    EncryptionInterceptor --> TransportKeySource
+```
+
+`DashboardSearchChanged` is debounced 300 ms (restartable); a list response is dropped if a newer query replaced it.
+
+Session state (`AuthBloc`), which the router redirects on:
+
+```mermaid
+stateDiagram-v2
+    [*] --> unknown
+    unknown --> authenticated: AuthStarted, stored token valid
+    unknown --> unauthenticated: no token or 401
+    unauthenticated --> authenticated: AuthLoginRequested / AuthRegisterRequested
+    authenticated --> unauthenticated: AuthLogoutRequested
+    authenticated --> unauthenticated: 401 on any request
+    authenticated --> authenticated: AuthUserUpdated / AuthDefaultCurrencyChanged
 ```
 
 #### Layer rules
@@ -429,7 +662,7 @@ frontend/lib/
 | `data` | remote datasources, JSON models (`extends`/maps to entities), repository implementations | `domain`, `core/network`, `core/storage` |
 | `presentation` | Blocs/Cubits, pages, widgets | `domain` (use cases, entities), `core/format`, `shared` |
 
-- Datasources call `ApiClient` and return models or throw `ApiException`.
+- Datasources call `ApiClient` through `remoteObject` / `remoteVoid`, which turn a missing or mistyped payload into `MalformedResponseApiException`; they never use `!` on JSON.
 - Repository implementations catch `ApiException`, map to `Failure`, return `Result<T>`. Nothing above `data` sees Dio or `ApiException`.
 - Blocs call use cases only, never repositories or datasources.
 
@@ -438,7 +671,7 @@ frontend/lib/
 `DioClient` builds one `Dio`, registered as a singleton in `get_it`:
 
 - `BaseOptions`: `baseUrl` from `const String.fromEnvironment('API_BASE_URL')`, JSON content type, `receiveTimeout` and `sendTimeout` 15 s. `connectTimeout` is not relied on (unreliable on web).
-- Interceptors, in order: `AuthInterceptor` (reads `TokenStorage`), `UnauthorizedInterceptor` (on 401 clears the token and pushes to a `SessionExpired` stream that `AuthBloc` listens to), `LogInterceptor` in debug builds only.
+- Interceptors, in order: `EncryptionInterceptor` (when the toggle is on: seals body and query, opens the sealed response, retries once on `409 key_version_stale`; §5a), `AuthInterceptor` (reads `TokenStorage`), `UnauthorizedInterceptor` (on 401 clears the token and notifies `AuthBloc`), `LogInterceptor` in debug builds only.
 
 `ApiClient` wraps it for datasources:
 
@@ -458,19 +691,21 @@ Each call adds an overall `.timeout(15 s)` and converts every `DioException` / `
 | `NetworkApiException` | connection error | `NetworkFailure()` |
 | `UnauthorizedApiException` | 401 | `AuthFailure()` |
 | `NotFoundApiException` | 404 | `NotFoundFailure()` |
-| `ConflictApiException(code)` | 409 | `ValidationFailure({'email': code})` |
-| `ValidationApiException(fieldErrors)` | 422 `{detail:[{field,code,message}]}` | `ValidationFailure(fieldErrors)` |
+| `ValidationApiException(fieldErrors)` | 409 or 422 `{detail:[{field,code,message}]}` | `ValidationFailure(fieldErrors)` |
+| `MalformedResponseApiException` | body missing or wrongly typed | `ServerFailure()` |
 | `ServerApiException` | 5xx, anything else | `ServerFailure()` |
 
 #### State management (flutter_bloc)
 
 | Bloc / Cubit | Events / methods | States |
 |---|---|---|
-| `AuthBloc` | `AppStarted`, `LoginRequested`, `RegisterRequested`, `LogoutRequested`, `DefaultCurrencyChanged`, `SessionExpired` | `AuthUnknown`, `Unauthenticated`, `AuthSubmitting`, `Authenticated(user)`, `AuthFailed(failure)` |
-| `GoalListBloc` | `GoalsRequested`, `GoalsRefreshed`, `TotalCurrencyChanged`, `GoalDeleted` | `GoalListLoading(isSlow)`, `GoalListEmpty`, `GoalListLoaded(goals, perGoalPlans, totals, totalCurrency)`, `GoalListError(failure)`. Per-goal SIPs and totals come from `CalculateGoalTotals`; changing the total currency recomputes locally, no request. |
-| `GoalFormBloc` | `FormStarted(goal?)`, `FieldChanged`, `Submitted` | one `GoalFormState` with field values, field errors, `status` (editing / submitting / success / failure) |
-| `PlanPreviewCubit` | `update(GoalDraft)` | `PreviewHidden` (invalid input) / `PreviewReady(projection)`; uses the local engine, no network |
-| `ProjectionBloc` | `ProjectionRequested(goalId)`, `PlanModeToggled` | `ProjectionLoading(isSlow)`, `ProjectionLoaded(goal, projection, mode)`, `ProjectionError(failure)`. Fetches the goal with `GetGoal`, then runs `CalculateProjection` locally. |
+| `AuthBloc` | `AuthStarted`, `AuthLoginRequested`, `AuthRegisterRequested`, `AuthLogoutRequested`, `AuthDefaultCurrencyChanged`, `AuthUserUpdated`, `AuthFailureCleared`, session expiry | one `AuthState(status: unknown / authenticated / unauthenticated, user, submitting, failure)` |
+| `ProfileCubit` | `saveName`, `changePassword` | `ProfileState` with a status and failure for each form |
+| `DashboardBloc` | `DashboardRequested`, `DashboardFiltersChanged`, `DashboardSearchChanged` (300 ms debounce, restartable), `DashboardSortChanged`, `DashboardPageChanged`, `DashboardTotalCurrencyChanged` | one `DashboardState`: status, isSlow, reachingSoon, page of `GoalPlan`s, summary, query, listLoading, failure |
+| `GoalFormBloc` | `GoalFormStarted`, `GoalFormChanged`, `GoalFormSubmitted` (droppable) | one `GoalFormState` with input, validation, status, failure |
+| `PlanPreviewCubit` | `update(GoalDraft?)` | `Projection?`; local engine, no network |
+| `ProjectionBloc` | `ProjectionRequested`, `PlanModeToggled`, `GoalDeleteRequested` | `ProjectionLoading(isSlow)`, `ProjectionLoaded(goal, projection, mode)`, `ProjectionError`, `GoalDeleted` |
+| `ConnectivityCubit` | `check()` | `bool` online |
 
 - States use `equatable`.
 - Slow network: a loading bloc starts a 3 s `Timer` when it emits `Loading`; if no result yet, it re-emits `Loading(isSlow: true)`. The timer is cancelled on result and in `close()`.
@@ -478,10 +713,10 @@ Each call adds an overall `.timeout(15 s)` and converts every `DioException` / `
 - Retry buttons re-dispatch the original request event.
 - English UI only; the design's language picker is removed from the account menu.
 - `Money` parses API strings (`"2500000.50"`) into `int` hundredths without going through `double`, and serialises back to the same string form. Form inputs are kept as strings until submit.
-- FX: `fx_rates.dart` holds `ratesPerUsd: Map<Currency, double>` and `ratesAsOf`, from one public reference snapshot noted in the README. `convert(amount, from, to) = amount / ratesPerUsd[from] * ratesPerUsd[to]`. Used only for the My goals total, never for a goal's own numbers.
+- FX lives on the server (`app/services/fx.py`, ECB snapshot dated 18 Nov 2026): `convert(amount, from, to) = amount / rates[from] * rates[to]`. Used only for the dashboard total, never for a goal's own numbers.
 - Money formatter takes the currency code explicitly: `formatMoney(amount, currency)`. Locale per currency follows the design: INR → `en-IN` (lakh/crore), GBP → `en-GB`, others → `en-US`.
 - The account menu's currency control is labelled "Default currency for new goals".
-- Chart: `fl_chart` line chart; two series (level, step-up), dashed goal line, hover/tap tooltip with year, SIP, put in, worth, goal %.
+- Chart: `fl_chart`; total worth over money put in (growth is the gap), dashed goal line, the year the goal is reached, the other plan as a faint line when step-up > 0, and a per-year tooltip (worth, put in, growth, SIP, goal %). Yearly tables over 8 years collapse to key years with "Show all N years".
 
 ### 6.2 Design tokens (from the canvas)
 
@@ -496,16 +731,19 @@ Each call adds an overall `.timeout(15 s)` and converts every `DioException` / `
 | success / success-bg | `#42be65` / `#0e2a17` |
 | series 1 (level) / series 2 (step-up) | `#5b8def` / `#b38c25` |
 | font | IBM Plex Sans 300/400/600 |
-| shape | square corners; fields with bottom border; 48 px primary button; 32 px pill chips |
+| shape | rounded raised cards (16 px) and buttons (12 px); gold gradient primary button with a shine; fields with a bottom border in every state; 32 px pill chips |
 
 ### 6.3 Screens
 
 | Screen | Content | States |
 |---|---|---|
-| Log in / Create account | email, password (show/hide), confirm password on register, side panel of three benefits (hidden on phone) | submitting, field errors with summary banner, `email_taken` with "Log in instead" |
-| My goals | summary strip (goal count, total monthly SIP and total of targets in a currency picked from a dropdown beside the total, defaulting to the user's default currency; "Approximate, at rates from <date>" when goals use other currencies); cards: type icon, name, target by date, level SIP, step-up line, saved % and time left, "See full plan" | loading skeleton, slow notice, empty (CTA + templates: Home, Education, Retirement, Emergency fund), error + retry |
-| New / Edit goal | goal type chips, name, currency (create only; read-only on edit), target amount (number + slider), target date, already invested; assumptions: return (8 / 10 / 12% chips + field), step-up slider 0–25, inflation slider 0–12; live preview panel (Dart engine); phone: preview as a bottom bar that opens a sheet | field errors with count banner, preview hidden while invalid, saving |
-| Goal plan (results) | header (name, target by date, time left, Edit, Delete; Delete confirms first); goal details; plan toggle level / step-up with hero SIP; "what makes up your target" (put in vs growth); today's money card; chart; yearly table; comparison table; "How we work this out" with the user's numbers; disclaimers | loading, slow notice, error + retry (goal is saved), on-track message when SIP is 0 |
+| Log in / Create account | email, password (show/hide); on register confirm password and first / last (optional) name; benefits panel; blurred globe backdrop | submitting, field errors with summary banner |
+| My goals | "All goals" jump button; totals card across every goal (count, total monthly SIP in a picked currency, total of targets; "Approximate, at rates from <date>"); reaching soon; all goals with search, type chips, currency / timeline / amount / sort menus, numbered pages | skeletons over the money matrix with tips, slow notice, empty (CTA + templates), no match, error + retry |
+| New / Edit goal | type chips, name, currency (create only), target amount and already invested with the amount spelled out, target date; return chips (8 / 10 / 12, default 10), step-up and inflation sliders (default 0% and 2%) with a haptic tick; live preview (bottom bar + sheet on phones) | field errors with count banner, preview hidden while invalid, saving |
+| Goal plan | header with Edit / Delete; plan toggle (hidden at 0% step-up) with hero SIP; breakdown; today's money; chart; yearly table (key years, expandable); comparison (hidden at 0%); "How we work this out" | loading, slow notice, error + retry, on-track message |
+| Profile | first / last name, email (read-only); change password | saving, field errors |
+| About | what GoalPlanner is, SIP impact examples | — |
+| Offline / 404 | full-page "Oops! No internet" with retry; 404 with a link home | — |
 
 Every amount is formatted in the currency of the goal it belongs to; only the My goals total uses the picked currency.
 
@@ -520,7 +758,7 @@ Every amount is formatted in the currency of the goal it belongs to; only the My
 
 - Content max width 1120 px, centred; two columns on desktop, one below 640 px.
 - Yearly and comparison tables scroll horizontally on narrow screens.
-- Disclaimer "Mutual fund investments are subject to market risks." on every screen footer; results add "This is not investment advice."
+- Footer pinned to the bottom of short pages: "Mutual fund investments are subject to market risks." and the copyright line; results add the assumptions and "This is not investment advice."
 
 ## 7. Tests
 
@@ -537,31 +775,20 @@ Each case: inputs (`as_of`, `target_date`, `T`, `C0`, `R`, `s`, `π`) and expect
 | Corpus already exceeds target | SIP 0, `on_track = true` |
 | 30% return, 25% step-up | Upper bounds compute without overflow |
 
-### 7.2 Backend (pytest)
+### 7.2 Backend (pytest, 108 tests)
 
-| # | Test | Expectation |
-|---|---|---|
-| 1 | Shared vectors | All pass |
-| 2 | Schedule reaches target | Final balance ≥ T for both plans |
-| 3 | Closed form agreement | Loop result = closed form when `s = 0` |
-| 4 | Auth flow | Register → login → `/auth/me` |
-| 5 | Weak password, duplicate email | 422 `password_weak`; 409 `email_taken` |
-| 6 | Ownership | User B gets 404 on user A's goal and its projection |
-| 7 | Validation | Negative amount, past date, 31% return → 422 with field codes |
-| 8 | Unauthenticated | `/goals` without token → 401 |
-| 9 | Currency rules | PATCH goal with `currency` → 422 `currency_locked`; `currency=XYZ` → 422 |
-| 10 | Money serializer | `"0.10"` stores `10` and returns `"0.10"`; `"1.234"` → 422 `too_many_decimals`; JPY `"100.5"` → 422 |
-| 11 | Encryption at rest | Raw SQL on `users.email` and `goals.name` returns `v1:` ciphertext, not the plaintext; API returns plaintext; login works via `email_hash` with mixed-case email |
-| 12 | History log | Create → 1 `created` row; PATCH two fields → `updated` row with exactly those two old/new pairs; PATCH with no change → no row |
-| 13 | Soft delete | DELETE → 204; goal gone from list and GET → 404; `deleted_at` set; `deleted` log row written; history still readable in DB |
-| 14 | UUIDv7 | Created ids have version 7 and sort in creation order |
+- Shared vectors, schedule reaches target, closed-form agreement, rounding to cents.
+- Auth: full flow, duplicate email (case-insensitive), weak password, bad tokens, optional last name, password change.
+- Goals: ownership (404 for another user), validation codes, currency lock, JPY precision, money serializer, encryption at rest (raw SQL shows `v1:`), history rows, soft delete, UUIDv7 ordering, projection endpoint, default inflation.
+- List: filters, sort, paging, name search (case-insensitive, combined with filters, too long rejected), summary totals across currencies.
+- Encrypted payloads: both directions with JSON and form bodies and sealed queries, sealed errors, unsealed 204s, tampering and cross-endpoint replay rejected, plaintext-query injection rejected, oversized bodies, rotation grace and revocation (including the active key), private keys encrypted at rest.
+- Migrations: down to base and back up; data backfills.
 
-### 7.3 Client (flutter test)
+### 7.3 Client (flutter test, 72 tests)
 
-- Dart engine: shared vectors.
-- `CalculateGoalTotals`: INR + USD goals, total in USD = USD SIP + converted INR SIP, flagged approximate; all-INR goals in INR → not flagged.
-- `Money`: `"0.10"` ↔ `10`; `"2500000.50"` round-trips exactly.
-- Money formatter: INR → "₹1.00 Cr" and "₹25.00 L"; USD → "$1.2M"; JPY has no decimals.
-- `ApiClient` (with a mocked Dio adapter): 422 body → `ValidationApiException` with field codes; timeout → `TimeoutApiException`.
-- Blocs (`bloc_test` + `mocktail` use cases): `GoalListBloc` emits `Loading → Loading(isSlow: true) → Loaded` when the use case takes > 3 s; `GoalListEmpty` for an empty list.
-- Widget tests: goal list empty state; form shows field error for a past date; results renders on-track message.
+- Dart engine: shared vectors, closed form, step-up and cents rounding; rounding helpers match the backend.
+- Money: string ↔ int parsing, formatting (INR lakh/crore, other currencies, JPY), amounts in words.
+- Form validator mirrors the API rules.
+- Network: `ApiClient` error mapping; `remoteObject` turns malformed payloads into errors; `EncryptionInterceptor` against a fake server (seal/open, form bodies, 204, stale-key retry, sealed errors, off); a Python-sealed payload opened in Dart.
+- Blocs: `DashboardBloc` (load, slow, empty, error, paging, filters keep totals, debounced search), `ProfileCubit`, connectivity.
+- Widgets: live preview panel, offline gate, footer pinned on short pages, text field height stable on focus.
