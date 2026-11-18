@@ -87,6 +87,8 @@ class GoalService:
         self._logs = GoalLogRepository(db)
 
     def page(self, user: User, params: GoalListParams) -> GoalPage:
+        if params.q:
+            return self._search(user, params)
         items, total = self._goals.page_for_user(
             user.id,
             params,
@@ -95,6 +97,23 @@ class GoalService:
             limit=params.page_size,
         )
         return GoalPage(items=items, page=params.page, page_size=params.page_size, total=total)
+
+    def _search(self, user: User, params: GoalListParams) -> GoalPage:
+        # Names are encrypted at rest, so SQL can't match them: the other filters narrow the
+        # rows in SQL, then names are matched after decryption. One user's goals are few.
+        needle = (params.q or "").casefold()
+        matches = [
+            g
+            for g in self._goals.all_matching(user.id, params, params.sort)
+            if needle in g.name.casefold()
+        ]
+        start = (params.page - 1) * params.page_size
+        return GoalPage(
+            items=matches[start : start + params.page_size],
+            page=params.page,
+            page_size=params.page_size,
+            total=len(matches),
+        )
 
     def summary(self, user: User, params: GoalSummaryParams) -> GoalTotals:
         """Level SIPs and targets of every matching goal, added up in one currency."""

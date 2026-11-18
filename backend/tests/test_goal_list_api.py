@@ -121,3 +121,37 @@ def test_summary_defaults_to_the_users_currency(client):
     body = client.get(f"{API}/goals/summary", headers=headers).json()
 
     assert (body["count"], body["currency"], body["total_monthly_sip"]) == (0, "EUR", "0.00")
+
+
+def test_search_matches_names_ignoring_case_and_pages_results(client):
+    headers = auth_headers(client)
+    for name in ("Home down payment", "Second HOME", "Car", "Holiday home fund"):
+        client.post(f"{API}/goals", json=goal_payload(name=name), headers=headers)
+
+    found = client.get(
+        f"{API}/goals", params={"q": "  home ", "page_size": 2, "sort": "newest"}, headers=headers
+    ).json()
+    page_2 = client.get(
+        f"{API}/goals", params={"q": "home", "page_size": 2, "page": 2}, headers=headers
+    ).json()
+
+    assert found["total"] == 3 and found["total_pages"] == 2
+    assert [g["name"] for g in found["items"]] == ["Holiday home fund", "Second HOME"]
+    assert [g["name"] for g in page_2["items"]] == ["Home down payment"]
+
+
+def test_search_combines_with_filters_and_rejects_long_text(client):
+    headers = auth_headers(client)
+    client.post(f"{API}/goals", json=goal_payload(name="Home", goal_type="home"), headers=headers)
+    client.post(
+        f"{API}/goals", json=goal_payload(name="Home car", goal_type="car"), headers=headers
+    )
+
+    only_cars = client.get(
+        f"{API}/goals", params={"q": "home", "goal_type": "car"}, headers=headers
+    )
+    too_long = client.get(f"{API}/goals", params={"q": "x" * 101}, headers=headers)
+
+    assert [g["name"] for g in only_cars.json()["items"]] == ["Home car"]
+    assert too_long.status_code == 422
+    assert too_long.json()["detail"][0]["code"] == "search_too_long"

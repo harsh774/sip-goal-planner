@@ -33,8 +33,13 @@ class GoalRepository:
         items = self._db.scalars(stmt.order_by(*_ORDER[sort]).offset(offset).limit(limit)).all()
         return items, total
 
-    def all_matching(self, user_id: uuid.UUID, filters: GoalFilters) -> Sequence[Goal]:
-        return self._db.scalars(self._matching(user_id, filters)).all()
+    def all_matching(
+        self, user_id: uuid.UUID, filters: GoalFilters, sort: GoalSort | None = None
+    ) -> Sequence[Goal]:
+        stmt = self._matching(user_id, filters)
+        if sort is not None:
+            stmt = stmt.order_by(*_ORDER[sort])
+        return self._db.scalars(stmt).all()
 
     @staticmethod
     def _matching(user_id: uuid.UUID, f: GoalFilters) -> Select[tuple[Goal]]:

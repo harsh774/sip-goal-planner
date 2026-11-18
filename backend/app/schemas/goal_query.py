@@ -2,7 +2,7 @@ from datetime import date
 from enum import StrEnum
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
 from pydantic_core import PydanticCustomError
 
 from app.models.enums import Currency
@@ -62,7 +62,21 @@ class GoalFilters(BaseModel):
         return date(self.target_year_to + 1, 1, 1) if self.target_year_to else None
 
 
+def _search_text(value: object) -> object:
+    if not isinstance(value, str):
+        return value
+    value = value.strip()
+    if len(value) > 100:
+        raise PydanticCustomError("search_too_long", "Search with at most 100 characters.")
+    return value or None
+
+
+SearchText = Annotated[str | None, BeforeValidator(_search_text)]
+
+
 class GoalListParams(GoalFilters):
+    # Matches goal names containing this text, ignoring case.
+    q: SearchText = None
     page: Annotated[int, Field(ge=1)] = 1
     page_size: Annotated[int, Field(ge=1, le=100)] = 10
     sort: GoalSort = GoalSort.NEWEST
