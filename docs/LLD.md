@@ -174,7 +174,7 @@ Defined once in Python (`app/models/enums.py`) as `StrEnum`s and stored as nativ
 |---|---|---|
 | `users.email` | `text`: AES-256-GCM ciphertext | personal data |
 | `users.email_hash` | `text`: HMAC-SHA256 hex of the lowercased email, **unique** | login lookup and uniqueness without decrypting |
-| `users.display_name` | `text`: ciphertext | personal data |
+| `users.first_name`, `users.last_name` | `text`: ciphertext | personal data |
 | `goals.name` | `text`: ciphertext | free text, may name family members ("Aanya's education") |
 | `goal_logs.changes` | `text`: ciphertext of the JSON diff | contains old/new names |
 
@@ -192,7 +192,8 @@ Defined once in Python (`app/models/enums.py`) as `StrEnum`s and stored as nativ
 | `email` | text | encrypted, stored lowercased before encryption |
 | `email_hash` | text | unique |
 | `password_hash` | text | bcrypt |
-| `display_name` | text | encrypted; from email local part if not given *(decision)* |
+| `first_name` | text | encrypted; required at registration (1–50 chars) |
+| `last_name` | text | encrypted; required at registration (1–50 chars). Migration 0002 split existing display names into these two columns. |
 | `default_currency` | `currency_code` | default `INR`. Pre-fills new goals and the My goals total. |
 | `created_at` | timestamptz | default now() |
 
@@ -239,11 +240,12 @@ Base path `/api/v1` *(decision)*. All routes except register and login require `
 
 | Method | Path | Request | Success | Errors |
 |---|---|---|---|---|
-| POST | `/auth/register` | `{email, password, display_name?}` | 201 `User` | 409 `email_taken`, 422 |
+| POST | `/auth/register` | `{first_name, last_name, email, password}` | 201 `User` | 409 `email_taken`, 422 |
 | POST | `/auth/login` | form `username`, `password` (OAuth2) | 200 `{access_token, token_type}` | 401 |
 | GET | `/auth/me` | — | 200 `User` | 401 |
-| PATCH | `/auth/me` | `{default_currency?, display_name?}` | 200 `User` | 401, 422 |
-| GET | `/goals` | — | 200 `[Goal]`, newest first | 401 |
+| PATCH | `/auth/me` | `{default_currency?, first_name?, last_name?}` | 200 `User` | 401, 422 |
+| GET | `/goals` | query: `page` (≥1), `page_size` (1–100, default 10), `sort` (`newest` \| `target_date` \| `target_amount`), filters `currency`, `goal_type`, `min_target_amount`, `max_target_amount`, `target_year_from`, `target_year_to` | 200 `{items: [Goal], page, page_size, total, total_pages}` | 401, 422 |
+| GET | `/goals/summary` | same filters, plus `in_currency` (default: the user's) and `as_of` | 200 `{count, currency, total_monthly_sip, total_target, converted, rates_as_of}` | 401, 422 |
 | POST | `/goals` | `GoalCreate` | 201 `Goal` | 401, 422 |
 | GET | `/goals/{id}` | — | 200 `Goal` | 401, 404 |
 | PATCH | `/goals/{id}` | `GoalUpdate` (all optional) | 200 `Goal` | 401, 404, 422 |
@@ -251,11 +253,13 @@ Base path `/api/v1` *(decision)*. All routes except register and login require `
 | GET | `/goals/{id}/history` | — | 200 `[GoalLogEntry]`, oldest first | 401, 404 |
 | GET | `/goals/{id}/projection` | — | 200 `Projection` | 401, 404 |
 
-- `User` = `{id, email, display_name, default_currency}`.
+- `User` = `{id, email, first_name, last_name, default_currency}`.
+- Amount filters compare raw amounts in each goal's own currency, so the client enables them only when a currency filter is set. Year filters become date bounds, so the `(user_id, target_date)` index can be used.
+- The dashboard makes three calls: `sort=target_date&page_size=3` for "Reaching soon", the filtered page, and `/goals/summary` with the same filters.
 - `Goal` = `{id, name, goal_type, currency, target_amount, target_date, current_corpus, expected_return_pct, annual_step_up_pct, inflation_pct, created_at, updated_at}`; amounts and percentages are strings (§1.3).
 - `GoalCreate` includes `currency` (defaults to the user's `default_currency`); `GoalUpdate` rejects `currency`.
 - `GoalLogEntry` = `{id, action, changes, created_at}`.
-- The goal list returns stored data only. SIPs per goal, the total and currency conversion are computed by the client (§6).
+- The goal list returns stored data only; each card's SIP is computed by the client (§6). The cross-goal total needs every matching goal, so `/goals/summary` computes it on the server, using the Python engine (same shared vectors) and the fixed FX table in `app/services/fx.py`.
 - Login uses the OAuth2 password form so the Swagger "Authorize" button works.
 
 ### Projection response
