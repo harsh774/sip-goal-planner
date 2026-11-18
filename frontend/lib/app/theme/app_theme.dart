@@ -61,18 +61,16 @@ abstract final class AppTheme {
         fillColor: AppColors.field,
         isDense: true,
         contentPadding: .symmetric(horizontal: 16, vertical: 12),
+        // One border type for every state, so focusing a field never changes its height.
         border: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.borderStrong)),
         enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.borderStrong)),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
+        focusedBorder: UnderlineInputBorder(
           borderSide: BorderSide(color: AppColors.gold, width: 2),
         ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
+        errorBorder: UnderlineInputBorder(
           borderSide: BorderSide(color: AppColors.danger, width: 2),
         ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
+        focusedErrorBorder: UnderlineInputBorder(
           borderSide: BorderSide(color: AppColors.danger, width: 2),
         ),
         labelStyle: TextStyle(color: AppColors.text2, fontSize: 13),
