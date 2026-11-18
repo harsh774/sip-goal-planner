@@ -2,7 +2,8 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import auth, goals
+from app.api.encrypted_transport import EXPOSED_HEADERS, EncryptedTransportMiddleware
+from app.api.routes import auth, crypto, goals
 from app.core.config import get_settings
 from app.core.errors import (
     FieldError,
@@ -31,12 +32,15 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title="SIP Goal Planner API", version="1.0.0", description=DESCRIPTION)
 
+    # Added first so CORS (added last) wraps it and answers preflights itself.
+    app.add_middleware(EncryptedTransportMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,
         allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=EXPOSED_HEADERS,
     )
 
     app.add_exception_handler(RequestValidationError, request_validation_handler)
@@ -45,6 +49,7 @@ def create_app() -> FastAPI:
 
     app.include_router(auth.router, prefix=API_PREFIX)
     app.include_router(goals.router, prefix=API_PREFIX)
+    app.include_router(crypto.router, prefix=API_PREFIX)
 
     @app.get("/health", tags=["meta"])
     def health() -> dict[str, str]:

@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     data_encryption_key: str
     email_hash_key: str
 
+    # Clients that may ask for a transport public key, and how long a replaced key still works.
+    transport_client_ids: str = "web,android"
+    transport_key_grace_hours: int = 24
+
     @field_validator("jwt_secret")
     @classmethod
     def _check_jwt_secret(cls, v: str) -> str:
@@ -54,6 +58,10 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @property
+    def transport_client_id_list(self) -> list[str]:
+        return [c.strip() for c in self.transport_client_ids.split(",") if c.strip()]
 
     @property
     def data_key_bytes(self) -> bytes:

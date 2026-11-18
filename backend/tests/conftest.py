@@ -36,7 +36,7 @@ def client(migrated_db) -> Iterator[TestClient]:
     with TestClient(app) as test_client:
         yield test_client
     with engine.begin() as conn:
-        conn.execute(text("TRUNCATE goal_logs, goals, users"))
+        conn.execute(text("TRUNCATE goal_logs, goals, users, transport_keys"))
 
 
 def auth_headers(client: TestClient, email: str = "priya@example.com") -> dict[str, str]:

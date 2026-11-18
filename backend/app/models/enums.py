@@ -28,6 +28,12 @@ class Currency(StrEnum):
 CURRENCY_DECIMALS: dict[Currency, int] = {c: 2 for c in Currency} | {Currency.JPY: 0}
 
 
+class TransportKeyStatus(StrEnum):
+    ACTIVE = "active"  # handed to clients for new requests
+    RETIRED = "retired"  # replaced by a newer version; accepted during the grace period
+    REVOKED = "revoked"  # never accepted again
+
+
 class GoalType(StrEnum):
     HOME = "home"
     EDUCATION = "education"
@@ -57,4 +63,5 @@ def _pg_enum(enum_cls: type[StrEnum], name: str) -> SAEnum:
 # One SQLAlchemy type object per PostgreSQL type, shared by every column that uses it.
 currency_enum = _pg_enum(Currency, "currency_code")
 goal_type_enum = _pg_enum(GoalType, "goal_type")
+transport_key_status_enum = _pg_enum(TransportKeyStatus, "transport_key_status")
 goal_action_enum = _pg_enum(GoalAction, "goal_action")
