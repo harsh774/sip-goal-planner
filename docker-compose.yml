@@ -1,0 +1,31 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: sip
+      POSTGRES_PASSWORD: sip
+      POSTGRES_DB: sip
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/scripts/create_test_db.sql:/docker-entrypoint-initdb.d/create_test_db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sip -d sip"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ./backend
+    env_file: ./backend/.env
+    environment:
+      DATABASE_URL: postgresql+psycopg://sip:sip@db:5432/sip
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
