@@ -20,7 +20,7 @@ class User(Base):
     email_hash: Mapped[str] = mapped_column(Text, nullable=False)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     first_name: Mapped[str] = mapped_column(EncryptedText, nullable=False)
-    last_name: Mapped[str] = mapped_column(EncryptedText, nullable=False)
+    last_name: Mapped[str | None] = mapped_column(EncryptedText, nullable=True)
     default_currency: Mapped[Currency] = mapped_column(
         currency_enum, nullable=False, server_default=text("'INR'")
     )

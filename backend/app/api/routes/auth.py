@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api.deps import AuthServiceDep, CurrentUser
 from app.core.security import create_access_token
-from app.schemas.auth import RegisterIn, TokenOut, UserOut, UserUpdate
+from app.schemas.auth import PasswordChange, RegisterIn, TokenOut, UserOut, UserUpdate
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -36,3 +36,9 @@ def me(user: CurrentUser):
 @router.patch("/me", response_model=UserOut)
 def update_me(data: UserUpdate, user: CurrentUser, auth: AuthServiceDep):
     return auth.update_profile(user, data)
+
+
+@router.post("/me/password", status_code=status.HTTP_204_NO_CONTENT)
+def change_password(data: PasswordChange, user: CurrentUser, auth: AuthServiceDep) -> None:
+    """Needs the current password. Existing tokens stay valid until they expire."""
+    auth.change_password(user, data)

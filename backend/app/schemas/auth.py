@@ -22,7 +22,7 @@ class RegisterIn(BaseModel):
     )
 
     first_name: FirstName
-    last_name: LastName
+    last_name: LastName = None
     email: Email
     password: Password
 
@@ -35,11 +35,18 @@ class UserUpdate(BaseModel):
     last_name: LastName | None = None
 
 
+class PasswordChange(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    current_password: str
+    new_password: Password
+
+
 class UserOut(BaseModel):
     id: uuid.UUID
     email: str
     first_name: str
-    last_name: str
+    last_name: str | None
     default_currency: Currency
 
 

@@ -79,3 +79,42 @@ def test_names_are_encrypted_and_editable(client):
     with engine.connect() as conn:
         first, last = conn.execute(text("SELECT first_name, last_name FROM users")).one()
     assert first.startswith("v1:") and last.startswith("v1:")
+
+
+def test_last_name_is_optional_and_can_be_cleared(client):
+    payload = register_payload(email="solo@example.com")
+    del payload["last_name"]
+    created = client.post(f"{API}/auth/register", json=payload)
+    assert created.status_code == 201
+    assert created.json()["last_name"] is None
+
+    headers = auth_headers(client)
+    cleared = client.patch(f"{API}/auth/me", json={"last_name": "  "}, headers=headers).json()
+    assert cleared["last_name"] is None
+
+
+def test_change_password_needs_the_current_one(client):
+    headers = auth_headers(client)
+    url = f"{API}/auth/me/password"
+
+    wrong = client.post(
+        url, json={"current_password": "nope1234", "new_password": "fresh123"}, headers=headers
+    )
+    same = client.post(
+        url, json={"current_password": "secret123", "new_password": "secret123"}, headers=headers
+    )
+    weak = client.post(
+        url, json={"current_password": "secret123", "new_password": "short"}, headers=headers
+    )
+    ok = client.post(
+        url, json={"current_password": "secret123", "new_password": "fresh123"}, headers=headers
+    )
+
+    assert wrong.json()["detail"][0]["code"] == "password_incorrect"
+    assert same.json()["detail"][0]["code"] == "password_unchanged"
+    assert weak.json()["detail"][0]["code"] == "password_weak"
+    assert ok.status_code == 204
+    login = client.post(
+        f"{API}/auth/login", data={"username": "priya@example.com", "password": "fresh123"}
+    )
+    assert login.status_code == 200

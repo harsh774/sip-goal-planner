@@ -8,7 +8,7 @@ from app.core.security import hash_password, verify_password
 from app.models import User
 from app.models.enums import Currency
 from app.repositories import UserRepository
-from app.schemas.auth import RegisterIn, UserUpdate
+from app.schemas.auth import PasswordChange, RegisterIn, UserUpdate
 
 # Checked against when the email is unknown, so response time doesn't reveal which emails exist.
 _DUMMY_HASH = hash_password("timing-equaliser-1")
@@ -59,7 +59,17 @@ class AuthService:
             user.default_currency = data.default_currency
         if data.first_name is not None:
             user.first_name = data.first_name
-        if data.last_name is not None:
+        if "last_name" in data.model_fields_set:
             user.last_name = data.last_name
         self._db.commit()
         return user
+
+    def change_password(self, user: User, data: PasswordChange) -> None:
+        if not verify_password(data.current_password, user.password_hash):
+            raise FieldError(
+                "current_password", "password_incorrect", "Current password is incorrect."
+            )
+        if data.new_password == data.current_password:
+            raise FieldError("new_password", "password_unchanged", "Choose a different password.")
+        user.password_hash = hash_password(data.new_password)
+        self._db.commit()
