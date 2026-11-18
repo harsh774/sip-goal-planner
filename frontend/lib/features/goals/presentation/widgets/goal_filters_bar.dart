@@ -6,197 +6,351 @@ import '../../../../core/domain/currency.dart';
 import '../../../../core/domain/scaled.dart';
 import '../../domain/entities/goal_query.dart';
 import '../../domain/entities/goal_type.dart';
+import 'goal_type_icon.dart';
 
-/// Edits a draft of the filters; nothing is sent until "Apply".
-class GoalFiltersBar extends StatefulWidget {
+const _allGoalsText = 'All goals';
+const _clearFiltersText = 'Clear filters';
+const _anyAmountText = 'Any amount';
+const _applyText = 'Apply';
+const _anyTimeText = 'Any time';
+const _within1YearText = 'Within 1 year';
+const _in15YearsText = 'In 1–5 years';
+const _in510YearsText = 'In 5–10 years';
+const _anyCurrencyText = 'Any currency';
+const _targetAmountText = 'Target amount';
+const _useNumbersWithAtText = 'Use numbers with at most 2 decimal places.';
+const _minimumIsAboveTheText = 'Minimum is above the maximum.';
+
+/// When a goal is due, as year ranges relative to this year.
+enum Timeline {
+  any(_anyTimeText),
+  withinYear(_within1YearText),
+  oneToFive(_in15YearsText),
+  fiveToTen(_in510YearsText),
+  tenPlus('10+ years away');
+
+  const Timeline(this.label);
+
+  final String label;
+
+  (int?, int?) years(int now) => switch (this) {
+    any => (null, null),
+    withinYear => (null, now + 1),
+    oneToFive => (now + 1, now + 5),
+    fiveToTen => (now + 5, now + 10),
+    tenPlus => (now + 10, null),
+  };
+
+  static Timeline of(GoalFilters f, int now) =>
+      values.firstWhere((t) => t.years(now) == (f.yearFrom, f.yearTo), orElse: () => any);
+}
+
+/// One row of goal-type chips, then small menus for currency, timeline,
+/// amount and sort. Every change applies straight away.
+class GoalFiltersBar extends StatelessWidget {
   const GoalFiltersBar({
     super.key,
     required this.filters,
     required this.sort,
     required this.onApply,
     required this.onSortChanged,
-  });
+    int? currentYear,
+  }) : _year = currentYear;
 
   final GoalFilters filters;
   final GoalSort sort;
   final ValueChanged<GoalFilters> onApply;
   final ValueChanged<GoalSort> onSortChanged;
+  final int? _year;
 
-  @override
-  State<GoalFiltersBar> createState() => _GoalFiltersBarState();
-}
+  int get year => _year ?? DateTime.now().year;
 
-class _GoalFiltersBarState extends State<GoalFiltersBar> {
-  late Currency? _currency = widget.filters.currency;
-  late GoalType? _type = widget.filters.type;
-  late final _min = TextEditingController(text: _amount(widget.filters.minTargetAmount));
-  late final _max = TextEditingController(text: _amount(widget.filters.maxTargetAmount));
-  late final _from = TextEditingController(text: widget.filters.yearFrom?.toString() ?? '');
-  late final _to = TextEditingController(text: widget.filters.yearTo?.toString() ?? '');
-  String? _error;
-
-  static String _amount(int? scaled) => scaled == null ? '' : Scaled.formatCompact(scaled);
-
-  @override
-  void dispose() {
-    for (final c in [_min, _max, _from, _to]) {
-      c.dispose();
-    }
-    super.dispose();
-  }
-
-  void _apply() {
-    final min = _min.text.isEmpty ? null : Scaled.tryParse(_min.text);
-    final max = _max.text.isEmpty ? null : Scaled.tryParse(_max.text);
-    final from = int.tryParse(_from.text);
-    final to = int.tryParse(_to.text);
-
-    final error = switch (true) {
-      _ when (_min.text.isNotEmpty && min == null) || (_max.text.isNotEmpty && max == null) =>
-        'Amounts must be numbers with at most 2 decimal places.',
-      _ when min != null && max != null && min > max => 'Minimum amount is above the maximum.',
-      _ when from != null && to != null && from > to => '“From” year is after the “to” year.',
-      _ => null,
-    };
-    setState(() => _error = error);
-    if (error != null) return;
-
-    widget.onApply(
-      GoalFilters(
-        currency: _currency,
-        type: _type,
-        // Amounts are in each goal's own currency, so they only filter within one currency.
-        minTargetAmount: _currency == null ? null : min,
-        maxTargetAmount: _currency == null ? null : max,
-        yearFrom: from,
-        yearTo: to,
-      ),
+  GoalFilters _with({
+    Object? currency = _keep,
+    Object? type = _keep,
+    Object? min = _keep,
+    Object? max = _keep,
+    (int?, int?)? years,
+  }) {
+    final c = identical(currency, _keep) ? filters.currency : currency as Currency?;
+    return GoalFilters(
+      currency: c,
+      type: identical(type, _keep) ? filters.type : type as GoalType?,
+      // Amounts are in each goal's own currency, so they only apply with a currency.
+      minTargetAmount: c == null
+          ? null
+          : (identical(min, _keep) ? filters.minTargetAmount : min as int?),
+      maxTargetAmount: c == null
+          ? null
+          : (identical(max, _keep) ? filters.maxTargetAmount : max as int?),
+      yearFrom: years == null ? filters.yearFrom : years.$1,
+      yearTo: years == null ? filters.yearTo : years.$2,
     );
   }
 
-  void _clear() {
-    setState(() {
-      _currency = null;
-      _type = null;
-      _error = null;
-      for (final c in [_min, _max, _from, _to]) {
-        c.clear();
-      }
-    });
-    widget.onApply(GoalFilters.none);
+  static const _keep = Object();
+
+  Future<void> _editAmount(BuildContext context, Currency currency) async {
+    final range = await showDialog<(int?, int?)>(
+      context: context,
+      builder: (_) => _AmountDialog(
+        currency: currency,
+        min: filters.minTargetAmount,
+        max: filters.maxTargetAmount,
+      ),
+    );
+    if (range != null) onApply(_with(min: range.$1, max: range.$2));
   }
 
   @override
   Widget build(BuildContext context) {
-    final amountsEnabled = _currency != null;
-    final digits = FilteringTextInputFormatter.digitsOnly;
-    final decimal = FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'));
+    final timeline = Timeline.of(filters, year);
+    final currency = filters.currency;
+    final hasAmount = filters.minTargetAmount != null || filters.maxTargetAmount != null;
 
-    Widget field(Widget child, [double width = 160]) => SizedBox(width: width, child: child);
-
-    return Container(
-      color: AppColors.layer,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 12,
-            runSpacing: 16,
-            crossAxisAlignment: WrapCrossAlignment.end,
+    return Column(
+      crossAxisAlignment: .stretch,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: .horizontal,
+          child: Row(
             children: [
-              field(
-                DropdownButtonFormField<Currency?>(
-                  initialValue: _currency,
-                  decoration: const InputDecoration(labelText: 'Currency'),
-                  dropdownColor: AppColors.layer,
-                  items: [
-                    const DropdownMenuItem(child: Text('All')),
-                    for (final c in Currency.values)
-                      DropdownMenuItem(value: c, child: Text(c.code)),
-                  ],
-                  onChanged: (c) => setState(() => _currency = c),
-                ),
-                120,
+              _TypeChip(
+                label: _allGoalsText,
+                selected: filters.type == null,
+                onTap: () => onApply(_with(type: null)),
               ),
-              field(
-                DropdownButtonFormField<GoalType?>(
-                  initialValue: _type,
-                  decoration: const InputDecoration(labelText: 'Goal type'),
-                  dropdownColor: AppColors.layer,
-                  items: [
-                    const DropdownMenuItem(child: Text('All types')),
-                    for (final t in GoalType.values)
-                      DropdownMenuItem(value: t, child: Text(t.label)),
-                  ],
-                  onChanged: (t) => setState(() => _type = t),
+              for (final t in GoalType.values)
+                _TypeChip(
+                  icon: t.icon,
+                  label: t.label,
+                  selected: filters.type == t,
+                  onTap: () => onApply(_with(type: filters.type == t ? null : t)),
                 ),
-                170,
-              ),
-              field(
-                TextField(
-                  controller: _min,
-                  enabled: amountsEnabled,
-                  inputFormatters: [decimal],
-                  decoration: InputDecoration(
-                    labelText: 'Min target',
-                    hintText: amountsEnabled ? null : 'Pick a currency',
-                  ),
-                ),
-                140,
-              ),
-              field(
-                TextField(
-                  controller: _max,
-                  enabled: amountsEnabled,
-                  inputFormatters: [decimal],
-                  decoration: const InputDecoration(labelText: 'Max target'),
-                ),
-                140,
-              ),
-              field(
-                TextField(
-                  controller: _from,
-                  inputFormatters: [digits, LengthLimitingTextInputFormatter(4)],
-                  decoration: const InputDecoration(labelText: 'Year from'),
-                ),
-                110,
-              ),
-              field(
-                TextField(
-                  controller: _to,
-                  inputFormatters: [digits, LengthLimitingTextInputFormatter(4)],
-                  decoration: const InputDecoration(labelText: 'Year to'),
-                ),
-                110,
-              ),
-              FilledButton(onPressed: _apply, child: const Text('Apply')),
-              if (!widget.filters.isEmpty)
-                TextButton(onPressed: _clear, child: const Text('Clear filters')),
             ],
           ),
-          if (_error != null) ...[
-            const SizedBox(height: 8),
-            Text(_error!, style: const TextStyle(color: AppColors.danger, fontSize: 12)),
-          ],
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              const Text('Sort by', style: TextStyle(color: AppColors.text2)),
-              const SizedBox(width: 12),
-              DropdownButton<GoalSort>(
-                value: widget.sort,
-                underline: const SizedBox.shrink(),
-                dropdownColor: AppColors.layer,
-                items: [
-                  for (final s in GoalSort.values) DropdownMenuItem(value: s, child: Text(s.label)),
-                ],
-                onChanged: (s) => s == null ? null : widget.onSortChanged(s),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: .center,
+          children: [
+            _MenuPill<Currency?>(
+              icon: Icons.payments_outlined,
+              label: currency == null ? _anyCurrencyText : currency.code,
+              active: currency != null,
+              options: [(null, _anyCurrencyText), for (final c in Currency.values) (c, c.code)],
+              onSelected: (c) => onApply(_with(currency: c)),
+            ),
+            _MenuPill<Timeline>(
+              icon: Icons.event_outlined,
+              label: timeline.label,
+              active: timeline != Timeline.any,
+              options: [for (final t in Timeline.values) (t, t.label)],
+              onSelected: (t) => onApply(_with(years: t.years(year))),
+            ),
+            if (currency != null)
+              _Pill(
+                icon: Icons.tune,
+                label: hasAmount ? _amountLabel(currency) : _targetAmountText,
+                active: hasAmount,
+                onTap: () => _editAmount(context, currency),
               ),
+            _MenuPill<GoalSort>(
+              icon: Icons.sort,
+              label: sort.label,
+              active: false,
+              options: [for (final s in GoalSort.values) (s, s.label)],
+              onSelected: onSortChanged,
+            ),
+            if (!filters.isEmpty)
+              TextButton.icon(
+                onPressed: () => onApply(GoalFilters.none),
+                icon: const Icon(Icons.close, size: 16),
+                label: const Text(_clearFiltersText),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  String _amountLabel(Currency c) {
+    String fmt(int v) => '${c.symbol.trim()}${Scaled.formatCompact(v)}';
+    return switch ((filters.minTargetAmount, filters.maxTargetAmount)) {
+      (final min?, final max?) => '${fmt(min)} – ${fmt(max)}',
+      (final min?, null) => 'From ${fmt(min)}',
+      (null, final max?) => 'Up to ${fmt(max)}',
+      _ => _targetAmountText,
+    };
+  }
+}
+
+class _TypeChip extends StatelessWidget {
+  const _TypeChip({required this.label, required this.selected, required this.onTap, this.icon});
+
+  final String label;
+  final IconData? icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const .only(right: 8),
+    child: ChoiceChip(
+      avatar: icon == null
+          ? null
+          : Icon(icon, size: 16, color: selected ? AppColors.onGold : AppColors.gold),
+      label: Text(label, style: TextStyle(color: selected ? AppColors.onGold : AppColors.text)),
+      selected: selected,
+      onSelected: (_) => onTap(),
+    ),
+  );
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({required this.icon, required this.label, required this.active, this.onTap});
+
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = active ? AppColors.gold : AppColors.text;
+    return Material(
+      color: active ? AppColors.goldTint : AppColors.layer,
+      shape: StadiumBorder(
+        side: BorderSide(color: active ? AppColors.gold : AppColors.borderStrong),
+      ),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const .symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            mainAxisSize: .min,
+            children: [
+              Icon(icon, size: 16, color: color),
+              const SizedBox(width: 6),
+              Text(label, style: TextStyle(fontSize: 13, color: color)),
+              const SizedBox(width: 2),
+              Icon(Icons.arrow_drop_down, size: 18, color: color),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MenuPill<T> extends StatelessWidget {
+  const _MenuPill({
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.options,
+    required this.onSelected,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool active;
+  final List<(T, String)> options;
+  final ValueChanged<T> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return MenuAnchor(
+      style: const MenuStyle(backgroundColor: WidgetStatePropertyAll(AppColors.layer)),
+      menuChildren: [
+        for (final (value, text) in options)
+          MenuItemButton(onPressed: () => onSelected(value), child: Text(text)),
+      ],
+      builder: (context, controller, _) => _Pill(
+        icon: icon,
+        label: label,
+        active: active,
+        onTap: () => controller.isOpen ? controller.close() : controller.open(),
+      ),
+    );
+  }
+}
+
+class _AmountDialog extends StatefulWidget {
+  const _AmountDialog({required this.currency, this.min, this.max});
+
+  final Currency currency;
+  final int? min;
+  final int? max;
+
+  @override
+  State<_AmountDialog> createState() => _AmountDialogState();
+}
+
+class _AmountDialogState extends State<_AmountDialog> {
+  late final _min = TextEditingController(text: _text(widget.min));
+  late final _max = TextEditingController(text: _text(widget.max));
+  String? _error;
+
+  static String _text(int? v) => v == null ? '' : Scaled.formatCompact(v);
+
+  @override
+  void dispose() {
+    _min.dispose();
+    _max.dispose();
+    super.dispose();
+  }
+
+  void _done() {
+    final min = _min.text.isEmpty ? null : Scaled.tryParse(_min.text);
+    final max = _max.text.isEmpty ? null : Scaled.tryParse(_max.text);
+    final error = switch (true) {
+      _ when (_min.text.isNotEmpty && min == null) || (_max.text.isNotEmpty && max == null) =>
+        _useNumbersWithAtText,
+      _ when min != null && max != null && min > max => _minimumIsAboveTheText,
+      _ => null,
+    };
+    if (error != null) return setState(() => _error = error);
+    Navigator.pop(context, (min, max));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final decimal = FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'));
+    final symbol = widget.currency.symbol.trim();
+    return AlertDialog(
+      title: Text('Target amount (${widget.currency.code})'),
+      content: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _min,
+              autofocus: true,
+              inputFormatters: [decimal],
+              decoration: InputDecoration(labelText: 'From ($symbol)'),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: TextField(
+              controller: _max,
+              inputFormatters: [decimal],
+              onSubmitted: (_) => _done(),
+              decoration: InputDecoration(labelText: 'Up to ($symbol)', errorText: _error),
+            ),
           ),
         ],
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, (null, null)),
+          child: const Text(_anyAmountText),
+        ),
+        FilledButton(onPressed: _done, child: const Text(_applyText)),
+      ],
     );
   }
 }

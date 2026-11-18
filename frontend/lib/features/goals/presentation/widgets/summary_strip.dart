@@ -5,6 +5,11 @@ import '../../../../core/domain/currency.dart';
 import '../../../../core/format/money_formatter.dart';
 import '../../domain/entities/goal_query.dart';
 
+const _totalMonthlySipNeededText = 'Total monthly SIP needed';
+const _allGoalsAddedUpText = 'All goals added up';
+const _matchingGoalsText = 'Matching goals';
+const _goalsText = 'Goals';
+
 class SummaryStrip extends StatelessWidget {
   const SummaryStrip({
     super.key,
@@ -24,14 +29,14 @@ class SummaryStrip extends StatelessWidget {
     final c = summary.currency;
     return Container(
       color: AppColors.layer,
-      padding: const EdgeInsets.all(24),
+      padding: const .all(24),
       child: Wrap(
         spacing: 48,
         runSpacing: 24,
         children: [
-          _Stat(label: filtered ? 'Matching goals' : 'Goals', value: '${summary.count}'),
+          _Stat(label: filtered ? _matchingGoalsText : _goalsText, value: '${summary.count}'),
           _Stat(
-            label: 'Total monthly SIP needed',
+            label: _totalMonthlySipNeededText,
             value: MoneyFormatter.full(summary.totalMonthlySip, c),
             trailing: DropdownButton<Currency>(
               value: c,
@@ -48,7 +53,7 @@ class SummaryStrip extends StatelessWidget {
                 ? 'Approximate, at rates from ${DateFormats.dayMonthYear.format(summary.ratesAsOf)}'
                 : null,
           ),
-          _Stat(label: 'All goals added up', value: MoneyFormatter.short(summary.totalTarget, c)),
+          _Stat(label: _allGoalsAddedUpText, value: MoneyFormatter.short(summary.totalTarget, c)),
         ],
       ),
     );
@@ -66,15 +71,15 @@ class _Stat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: .start,
+      mainAxisSize: .min,
       children: [
         Text(label, style: const TextStyle(fontSize: 12, color: AppColors.text2)),
         const SizedBox(height: 4),
         Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: .min,
           children: [
-            Text(value, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w300)),
+            Text(value, style: const TextStyle(fontSize: 28, fontWeight: .w300)),
             if (trailing != null) ...[const SizedBox(width: 12), trailing!],
           ],
         ),

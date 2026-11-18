@@ -5,6 +5,14 @@ import '../../../../app/theme/app_theme.dart';
 import '../../domain/entities/goal_type.dart';
 import 'goal_type_icon.dart';
 
+const _youHaventAddedAnyText = 'You haven’t added any goals yet';
+const _createYourFirstGoalText = 'Create your first goal';
+const _orStartFromText = 'Or start from:';
+const _noGoalsMatchTheseText = 'No goals match these filters.';
+const _clearFiltersText = 'Clear filters';
+const _addSomethingYouReText =
+    'Add something you’re saving for — like a home, a car or retirement. We’ll work out how much to invest each month to get there.';
+
 class EmptyGoals extends StatelessWidget {
   const EmptyGoals({super.key, required this.onCreate});
 
@@ -22,26 +30,22 @@ class EmptyGoals extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: AppColors.layer,
-      padding: const EdgeInsets.all(32),
+      padding: const .all(32),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: [
           const Icon(Icons.flag_outlined, color: AppColors.gold, size: 40),
           const SizedBox(height: 16),
-          const Text('You haven’t added any goals yet', style: TextStyle(fontSize: 22)),
+          const Text(_youHaventAddedAnyText, style: TextStyle(fontSize: 22)),
           const SizedBox(height: 8),
-          const Text(
-            'Add something you’re saving for — like a home, a car or retirement. '
-            'We’ll work out how much to invest each month to get there.',
-            style: TextStyle(color: AppColors.text2, height: 1.4),
-          ),
+          const Text(_addSomethingYouReText, style: TextStyle(color: AppColors.text2, height: 1.4)),
           const SizedBox(height: 24),
           FilledButton(
             onPressed: () => onCreate(Routes.newGoal),
-            child: const Text('Create your first goal'),
+            child: const Text(_createYourFirstGoalText),
           ),
           const SizedBox(height: 24),
-          const Text('Or start from:', style: TextStyle(color: AppColors.text2)),
+          const Text(_orStartFromText, style: TextStyle(color: AppColors.text2)),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -70,13 +74,13 @@ class NoMatchingGoals extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: AppColors.layer,
-      padding: const EdgeInsets.all(24),
+      padding: const .all(24),
       child: Row(
         children: [
           const Expanded(
-            child: Text('No goals match these filters.', style: TextStyle(color: AppColors.text2)),
+            child: Text(_noGoalsMatchTheseText, style: TextStyle(color: AppColors.text2)),
           ),
-          TextButton(onPressed: onClear, child: const Text('Clear filters')),
+          TextButton(onPressed: onClear, child: const Text(_clearFiltersText)),
         ],
       ),
     );

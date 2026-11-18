@@ -7,6 +7,11 @@ import '../../../projection/domain/engine/projection_calculator.dart';
 import '../../../projection/domain/usecases/plan_goals.dart';
 import 'goal_type_icon.dart';
 
+const _investEveryMonthText = 'Invest every month';
+const _seeFullPlanText = 'See full plan →';
+const _sameAmountEveryMonthText = 'Same amount every month';
+const _nothingMoreNeededText = 'Nothing more needed';
+
 class GoalCard extends StatelessWidget {
   const GoalCard({super.key, required this.plan, required this.onOpen, this.compact = false});
 
@@ -22,7 +27,7 @@ class GoalCard extends StatelessWidget {
     final c = goal.currency;
     final monthsLeft = ProjectionCalculator.monthsBetween(DateTime.now(), goal.targetDate);
     final stepLine = goal.annualStepUpBp == 0
-        ? 'Same amount every month'
+        ? _sameAmountEveryMonthText
         : 'or start at ${MoneyFormatter.full(plan.stepUpFirstSip, c)}, rising '
               '${Scaled.formatCompact(goal.annualStepUpBp)}% a year';
 
@@ -31,9 +36,9 @@ class GoalCard extends StatelessWidget {
       child: InkWell(
         onTap: onOpen,
         child: Padding(
-          padding: EdgeInsets.all(compact ? 20 : 24),
+          padding: .all(compact ? 20 : 24),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: .start,
             children: [
               Row(
                 children: [
@@ -41,13 +46,13 @@ class GoalCard extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: .start,
                       children: [
                         Text(
                           goal.name,
                           maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                          overflow: .ellipsis,
+                          style: const TextStyle(fontSize: 18, fontWeight: .w600),
                         ),
                         Text(
                           '${MoneyFormatter.short(Scaled.toDouble(goal.targetAmount), c)} by '
@@ -61,14 +66,14 @@ class GoalCard extends StatelessWidget {
               ),
               SizedBox(height: compact ? 12 : 20),
               const Text(
-                'Invest every month',
+                _investEveryMonthText,
                 style: TextStyle(fontSize: 12, color: AppColors.text2),
               ),
               Text(
                 plan.projection.onTrack
-                    ? 'Nothing more needed'
+                    ? _nothingMoreNeededText
                     : MoneyFormatter.full(plan.levelSip, c),
-                style: TextStyle(fontSize: compact ? 24 : 28, fontWeight: FontWeight.w300),
+                style: TextStyle(fontSize: compact ? 24 : 28, fontWeight: .w300),
               ),
               if (!compact)
                 Text(stepLine, style: const TextStyle(color: AppColors.text2, fontSize: 13)),
@@ -97,8 +102,8 @@ class GoalCard extends StatelessWidget {
               if (!compact) ...[
                 const SizedBox(height: 12),
                 const Align(
-                  alignment: Alignment.centerRight,
-                  child: Text('See full plan →', style: TextStyle(color: AppColors.gold)),
+                  alignment: .centerRight,
+                  child: Text(_seeFullPlanText, style: TextStyle(color: AppColors.gold)),
                 ),
               ],
             ],

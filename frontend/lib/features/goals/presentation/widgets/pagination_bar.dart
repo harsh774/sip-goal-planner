@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/theme/app_theme.dart';
 
+const _previousPageText = 'Previous page';
+const _textText = '…';
+const _nextPageText = 'Next page';
+
 class PaginationBar extends StatelessWidget {
   const PaginationBar({
     super.key,
@@ -41,21 +45,21 @@ class PaginationBar extends StatelessWidget {
     return Semantics(
       label: 'Page $page of $totalPages, $total goals',
       child: Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
+        alignment: .center,
+        crossAxisAlignment: .center,
         spacing: 4,
         runSpacing: 8,
         children: [
           IconButton(
-            tooltip: 'Previous page',
+            tooltip: _previousPageText,
             onPressed: enabled && page > 1 ? () => onPage(page - 1) : null,
             icon: const Icon(Icons.chevron_left),
           ),
           for (final p in _numbers)
             if (p == null)
               const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4),
-                child: Text('…', style: TextStyle(color: AppColors.text2)),
+                padding: .symmetric(horizontal: 4),
+                child: Text(_textText, style: TextStyle(color: AppColors.text2)),
               )
             else
               SizedBox(
@@ -74,7 +78,7 @@ class PaginationBar extends StatelessWidget {
                 ),
               ),
           IconButton(
-            tooltip: 'Next page',
+            tooltip: _nextPageText,
             onPressed: enabled && page < totalPages ? () => onPage(page + 1) : null,
             icon: const Icon(Icons.chevron_right),
           ),

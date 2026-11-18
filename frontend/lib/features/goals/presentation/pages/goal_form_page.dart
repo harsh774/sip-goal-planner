@@ -8,7 +8,9 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/domain/currency.dart';
 import '../../../../core/domain/scaled.dart';
 import '../../../../core/format/money_formatter.dart';
+import '../../../../core/presentation/haptics/haptics.dart';
 import '../../../../shared/widgets/app_shell.dart';
+import '../../../../shared/widgets/gold_button.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../projection/domain/entities/projection.dart';
@@ -18,6 +20,21 @@ import '../../domain/entities/goal_type.dart';
 import '../../domain/validation/goal_form_validator.dart';
 import '../bloc/goal_form_bloc.dart';
 import '../widgets/goal_type_icon.dart';
+
+const _livePreviewMonthlySipText = 'Live preview · monthly SIP needed';
+const _detailsText = 'Details';
+const _loadingYourGoalText = 'Loading your goal';
+const _weCouldntLoadThisText = 'We couldn’t load this goal.';
+const _typeANumberOrText = 'Type a number or drag the slider. Your plan updates as you go.';
+const _theyreMarkedInRedText = 'They’re marked in red below.';
+const _couldntSaveYourGoalText = 'Couldn’t save your goal.';
+const _goalNameText = 'Goal name';
+const _currencyText = 'Currency';
+const _targetDateText = 'Target date';
+const _expectedReturnAYearText = 'Expected return (% a year)';
+const _yearlySipIncreaseText = 'Yearly SIP increase';
+const _inflationAYearText = 'Inflation (% a year)';
+const _cancelText = 'Cancel';
 
 class GoalFormPage extends StatelessWidget {
   const GoalFormPage({super.key, this.goalId, this.template});
@@ -48,17 +65,121 @@ class GoalFormPage extends StatelessWidget {
   }
 }
 
+const _wideLayout = 900.0;
+const _fillInTheFormText = 'Fill in the form to see your plan';
+const _nothingMoreNeededText = 'Nothing more needed';
+const _cautiousText = 'Cautious';
+const _balancedText = 'Balanced';
+const _growthText = 'Growth';
+const _editGoalText = 'Edit goal';
+const _newGoalText = 'New goal';
+const _yourGoalText = 'Your goal';
+const _fixedOnceAGoalText = 'Fixed once a goal is saved.';
+const _chooseADateText = 'Choose a date';
+const _assumptionsText = 'Assumptions';
+const _theseRatesAreIllustrativeText =
+    'These rates are illustrative assumptions used for the estimate. Real returns and inflation will differ.';
+const _alsoCalledStepUpText = 'Also called step-up. 0 keeps it the same.';
+const _howFastPricesRiseText = 'How fast prices rise.';
+const _saveChangesText = 'Save changes';
+const _saveGoalText = 'Save goal';
+
+PlanPreviewPanel _previewPanel(GoalFormInput input, Projection? projection) => PlanPreviewPanel(
+  projection: projection,
+  currency: input.currency,
+  target: Scaled.tryParse(input.targetAmount)?.let(Scaled.toDouble),
+  targetDate: input.targetDate,
+  stepUpPct: input.annualStepUp,
+);
+
+/// Phones: the live preview stays in view as a bar under the form; tap it for the details.
+class _MobilePreviewBar extends StatelessWidget {
+  const _MobilePreviewBar();
+
+  @override
+  Widget build(BuildContext context) {
+    final input = context.select((GoalFormBloc b) => b.state.input);
+    final projection = context.watch<PlanPreviewCubit>().state;
+    if (input == null) return const SizedBox.shrink();
+
+    final headline = switch (projection) {
+      null => _fillInTheFormText,
+      final p when p.onTrack => _nothingMoreNeededText,
+      final p => '${MoneyFormatter.full(p.level.firstYearSip, input.currency)} / month',
+    };
+
+    return Material(
+      color: AppColors.layer2,
+      elevation: 12,
+      child: SafeArea(
+        top: false,
+        child: InkWell(
+          onTap: () => showModalBottomSheet<void>(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: AppColors.layer,
+            showDragHandle: true,
+            builder: (_) => SingleChildScrollView(
+              padding: const .only(bottom: 16),
+              child: _previewPanel(input, projection),
+            ),
+          ),
+          child: Container(
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: AppColors.gold, width: 2)),
+            ),
+            padding: const .symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: .start,
+                    mainAxisSize: .min,
+                    children: [
+                      const Text(
+                        _livePreviewMonthlySipText,
+                        style: TextStyle(fontSize: 12, color: AppColors.text2),
+                      ),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 150),
+                        child: Text(
+                          headline,
+                          key: ValueKey(headline),
+                          style: TextStyle(
+                            fontSize: projection == null ? 14 : 22,
+                            fontWeight: .w500,
+                            color: projection == null ? AppColors.text2 : AppColors.gold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Text(_detailsText, style: TextStyle(color: AppColors.gold)),
+                const Icon(Icons.keyboard_arrow_up, color: AppColors.gold),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _GoalFormView extends StatelessWidget {
   const _GoalFormView();
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<GoalFormBloc>().state;
+    final narrow = MediaQuery.sizeOf(context).width < _wideLayout;
+    final editing = state.status == GoalFormStatus.editing || state.status == GoalFormStatus.saving;
     return AppShell(
+      bottomBar: narrow && editing ? const _MobilePreviewBar() : null,
       child: switch (state.status) {
-        GoalFormStatus.loading => const LoadingView(label: 'Loading your goal'),
+        GoalFormStatus.loading => const LoadingView(label: _loadingYourGoalText),
         GoalFormStatus.loadFailed => ErrorView(
-          title: 'We couldn’t load this goal.',
+          title: _weCouldntLoadThisText,
           failure: state.failure!,
           onRetry: () => context.read<GoalFormBloc>().add(
             GoalFormStarted(defaultCurrency: Currency.inr, goalId: state.goalId),
@@ -91,7 +212,7 @@ class _GoalFormState extends State<_GoalForm> {
   late String _inflation = widget.initial.inflation;
 
   static final _decimal = FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'));
-  static const _returnPresets = [('Cautious', '8'), ('Balanced', '10'), ('Growth', '12')];
+  static const _returnPresets = [(_cautiousText, '8'), (_balancedText, '10'), (_growthText, '12')];
 
   @override
   void dispose() {
@@ -140,17 +261,13 @@ class _GoalFormState extends State<_GoalForm> {
     final preview = context.watch<PlanPreviewCubit>().state;
 
     final form = _formFields(state, errors);
-    final panel = _preview(preview);
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: [
-        Text(state.isEdit ? 'Edit goal' : 'New goal', style: const TextStyle(fontSize: 32)),
+        Text(state.isEdit ? _editGoalText : _newGoalText, style: const TextStyle(fontSize: 32)),
         const SizedBox(height: 4),
-        const Text(
-          'Type a number or drag the slider. Your plan updates as you go.',
-          style: TextStyle(color: AppColors.text2),
-        ),
+        const Text(_typeANumberOrText, style: TextStyle(color: AppColors.text2)),
         if (errors.isNotEmpty) ...[
           const SizedBox(height: 16),
           NoticeBanner(
@@ -160,7 +277,7 @@ class _GoalFormState extends State<_GoalForm> {
             title: errors.length == 1
                 ? '1 field needs your attention.'
                 : '${errors.length} fields need your attention.',
-            body: 'They’re marked in red below.',
+            body: _theyreMarkedInRedText,
           ),
         ],
         if (state.failure != null && errors.isEmpty) ...[
@@ -169,44 +286,36 @@ class _GoalFormState extends State<_GoalForm> {
             icon: Icons.error_outline,
             color: AppColors.danger,
             background: AppColors.dangerBg,
-            title: 'Couldn’t save your goal.',
+            title: _couldntSaveYourGoalText,
             body: '${state.failure!.message} Your changes are still here.',
           ),
         ],
         const SizedBox(height: 24),
         LayoutBuilder(
-          builder: (context, c) => c.maxWidth >= 900
+          builder: (context, c) => MediaQuery.sizeOf(context).width >= _wideLayout
               ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: .start,
                   children: [
                     Expanded(flex: 3, child: form),
                     const SizedBox(width: 32),
-                    Expanded(flex: 2, child: panel),
+                    Expanded(flex: 2, child: _previewPanel(state.input!, preview)),
                   ],
                 )
-              : Column(children: [form, const SizedBox(height: 24), panel]),
+              : form,
         ),
       ],
     );
   }
 
-  Widget _preview(Projection? projection) => PlanPreviewPanel(
-    projection: projection,
-    currency: _currency,
-    target: Scaled.tryParse(_target.text)?.let(Scaled.toDouble),
-    targetDate: _date,
-    stepUpPct: _stepUp,
-  );
-
   Widget _formFields(GoalFormState state, Map<String, String> errors) {
     final saving = state.status == GoalFormStatus.saving;
     return Container(
       color: AppColors.layer,
-      padding: const EdgeInsets.all(24),
+      padding: const .all(24),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: [
-          const _SectionTitle('Your goal'),
+          const _SectionTitle(_yourGoalText),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -235,15 +344,15 @@ class _GoalFormState extends State<_GoalForm> {
           TextField(
             controller: _name,
             onChanged: (_) => _changed(),
-            decoration: InputDecoration(labelText: 'Goal name', errorText: errors['name']),
+            decoration: InputDecoration(labelText: _goalNameText, errorText: errors['name']),
           ),
           const SizedBox(height: 24),
           _row([
             DropdownButtonFormField<Currency>(
               initialValue: _currency,
               decoration: InputDecoration(
-                labelText: 'Currency',
-                helperText: state.isEdit ? 'Fixed once a goal is saved.' : null,
+                labelText: _currencyText,
+                helperText: state.isEdit ? _fixedOnceAGoalText : null,
                 errorText: errors['currency'],
               ),
               dropdownColor: AppColors.layer,
@@ -274,12 +383,12 @@ class _GoalFormState extends State<_GoalForm> {
               onTap: _pickDate,
               child: InputDecorator(
                 decoration: InputDecoration(
-                  labelText: 'Target date',
+                  labelText: _targetDateText,
                   errorText: errors['target_date'],
                   suffixIcon: const Icon(Icons.calendar_today_outlined, size: 18),
                 ),
                 child: Text(
-                  _date == null ? 'Choose a date' : DateFormats.dayMonthYear.format(_date!),
+                  _date == null ? _chooseADateText : DateFormats.dayMonthYear.format(_date!),
                   style: TextStyle(color: _date == null ? AppColors.text3 : AppColors.text),
                 ),
               ),
@@ -296,10 +405,9 @@ class _GoalFormState extends State<_GoalForm> {
             ),
           ]),
           const SizedBox(height: 32),
-          const _SectionTitle('Assumptions'),
+          const _SectionTitle(_assumptionsText),
           const Text(
-            'These rates are illustrative assumptions used for the estimate. '
-            'Real returns and inflation will differ.',
+            _theseRatesAreIllustrativeText,
             style: TextStyle(fontSize: 13, color: AppColors.text2),
           ),
           const SizedBox(height: 16),
@@ -333,14 +441,14 @@ class _GoalFormState extends State<_GoalForm> {
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [_decimal],
             decoration: InputDecoration(
-              labelText: 'Expected return (% a year)',
+              labelText: _expectedReturnAYearText,
               errorText: errors['expected_return_pct'],
             ),
           ),
           const SizedBox(height: 24),
           _PercentSlider(
-            label: 'Yearly SIP increase',
-            help: 'Also called step-up. 0 keeps it the same.',
+            label: _yearlySipIncreaseText,
+            help: _alsoCalledStepUpText,
             value: _stepUp,
             max: 25,
             error: errors['annual_step_up_pct'],
@@ -351,8 +459,8 @@ class _GoalFormState extends State<_GoalForm> {
           ),
           const SizedBox(height: 16),
           _PercentSlider(
-            label: 'Inflation (% a year)',
-            help: 'How fast prices rise.',
+            label: _inflationAYearText,
+            help: _howFastPricesRiseText,
             value: _inflation,
             max: 12,
             error: errors['inflation_pct'],
@@ -363,23 +471,17 @@ class _GoalFormState extends State<_GoalForm> {
           ),
           const SizedBox(height: 32),
           Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+            mainAxisAlignment: .end,
             children: [
               TextButton(
                 onPressed: saving ? null : () => context.pop(),
-                child: const Text('Cancel'),
+                child: const Text(_cancelText),
               ),
               const SizedBox(width: 12),
-              FilledButton(
-                onPressed: saving
-                    ? null
-                    : () => context.read<GoalFormBloc>().add(const GoalFormSubmitted()),
-                child: saving
-                    ? const SizedBox.square(
-                        dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(state.isEdit ? 'Save changes' : 'Save goal'),
+              GoldButton(
+                loading: saving,
+                onPressed: () => context.read<GoalFormBloc>().add(const GoalFormSubmitted()),
+                child: Text(state.isEdit ? _saveChangesText : _saveGoalText),
               ),
             ],
           ),
@@ -391,7 +493,7 @@ class _GoalFormState extends State<_GoalForm> {
   Widget _row(List<Widget> children) => LayoutBuilder(
     builder: (context, c) => c.maxWidth >= 520
         ? Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: .start,
             children: [
               Expanded(child: children[0]),
               const SizedBox(width: 16),
@@ -423,14 +525,14 @@ class _PercentSlider extends StatelessWidget {
   Widget build(BuildContext context) {
     final current = (Scaled.tryParse(value) ?? 0) / 100;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: [
         Row(
           children: [
             Expanded(
               child: Text(label, style: const TextStyle(fontSize: 13, color: AppColors.text2)),
             ),
-            Text('$value%', style: const TextStyle(fontWeight: FontWeight.w600)),
+            Text('$value%', style: const TextStyle(fontWeight: .w600)),
           ],
         ),
         Slider(
@@ -439,7 +541,12 @@ class _PercentSlider extends StatelessWidget {
           divisions: max * 2,
           label: '$value%',
           semanticFormatterCallback: (v) => '$label ${Scaled.formatCompact((v * 100).round())}%',
-          onChanged: (v) => onChanged(Scaled.formatCompact((v * 100).round())),
+          onChanged: (v) {
+            final next = Scaled.formatCompact((v * 100).round());
+            if (next == value) return;
+            Haptics.tick();
+            onChanged(next);
+          },
         ),
         Text(
           error ?? help,
@@ -457,8 +564,8 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: Text(text, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+    padding: const .only(bottom: 12),
+    child: Text(text, style: const TextStyle(fontSize: 18, fontWeight: .w600)),
   );
 }
 
@@ -469,7 +576,7 @@ class _ErrorText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 8),
+    padding: const .only(top: 8),
     child: Text(text, style: const TextStyle(fontSize: 12, color: AppColors.danger)),
   );
 }

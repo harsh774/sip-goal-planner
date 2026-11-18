@@ -7,6 +7,7 @@ import '../../../../app/theme/app_theme.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/domain/currency.dart';
 import '../../../../shared/widgets/app_shell.dart';
+import '../../../../shared/widgets/gold_button.dart';
 import '../../../../shared/widgets/state_views.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../domain/entities/goal_query.dart';
@@ -15,7 +16,21 @@ import '../widgets/empty_goals.dart';
 import '../widgets/goal_card.dart';
 import '../widgets/goal_filters_bar.dart';
 import '../widgets/pagination_bar.dart';
+import '../widgets/sip_insights.dart';
 import '../widgets/summary_strip.dart';
+
+const _loadingYourGoalsText = 'Loading your goals';
+const _weCouldntLoadYourText = 'We couldn’t load your goals.';
+const _yourSavedGoalsAreText = 'Your saved goals are safe.';
+const _myGoalsText = 'My goals';
+const _eachGoalShowsTheText = 'Each goal shows the monthly SIP needed to reach it on time.';
+const _newGoalText = 'New goal';
+const _couldntUpdateTheListText = 'Couldn’t update the list.';
+const _reachingSoonText = 'Reaching soon';
+const _yourGoalsWithTheText = 'Your goals with the nearest target dates.';
+const _allGoalsText = 'All goals';
+const _sipAmountsUseTheText =
+    'SIP amounts use the return you entered for each goal and are illustrative assumptions, not promises.';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
@@ -49,22 +64,22 @@ class _DashboardView extends StatelessWidget {
 
     return AppShell(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: .stretch,
         children: [
           _Header(showNewGoal: !state.hasNoGoals, onNewGoal: () => _open(context, Routes.newGoal)),
           const SizedBox(height: 32),
           switch (state.status) {
             DashboardStatus.loading => LoadingView(
-              label: 'Loading your goals',
+              label: _loadingYourGoalsText,
               isSlow: state.isSlow,
               skeleton: const Column(
                 children: [SkeletonBox(height: 96), SkeletonBox(), SkeletonBox()],
               ),
             ),
             DashboardStatus.failure => ErrorView(
-              title: 'We couldn’t load your goals.',
+              title: _weCouldntLoadYourText,
               failure: state.failure!,
-              hint: 'Your saved goals are safe.',
+              hint: _yourSavedGoalsAreText,
               onRetry: () => bloc.add(DashboardRequested(state.totalCurrency)),
             ),
             DashboardStatus.ready when state.hasNoGoals => EmptyGoals(
@@ -75,6 +90,12 @@ class _DashboardView extends StatelessWidget {
               onOpen: (id) => _open(context, Routes.goal(id)),
             ),
           },
+          if (state.status == DashboardStatus.ready) ...[
+            const SizedBox(height: 48),
+            SipImpactSection(currency: state.totalCurrency),
+            const SizedBox(height: 32),
+            const AboutGoalPlanner(),
+          ],
         ],
       ),
     );
@@ -90,27 +111,20 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Wrap(
-      alignment: WrapAlignment.spaceBetween,
-      crossAxisAlignment: WrapCrossAlignment.center,
+      alignment: .spaceBetween,
+      crossAxisAlignment: .center,
       runSpacing: 16,
       children: [
         const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: .start,
           children: [
-            Text('My goals', style: TextStyle(fontSize: 32)),
+            Text(_myGoalsText, style: TextStyle(fontSize: 32)),
             SizedBox(height: 4),
-            Text(
-              'Each goal shows the monthly SIP needed to reach it on time.',
-              style: TextStyle(color: AppColors.text2),
-            ),
+            Text(_eachGoalShowsTheText, style: TextStyle(color: AppColors.text2)),
           ],
         ),
         if (showNewGoal)
-          FilledButton.icon(
-            onPressed: onNewGoal,
-            icon: const Icon(Icons.add),
-            label: const Text('New goal'),
-          ),
+          GoldButton(onPressed: onNewGoal, icon: Icons.add, child: const Text(_newGoalText)),
       ],
     );
   }
@@ -129,7 +143,7 @@ class _Dashboard extends StatelessWidget {
     final filters = state.query.filters;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: [
         if (state.summary case final summary?)
           SummaryStrip(
@@ -138,7 +152,7 @@ class _Dashboard extends StatelessWidget {
             onCurrencyChanged: (c) => bloc.add(DashboardTotalCurrencyChanged(c)),
           ),
         const SizedBox(height: 32),
-        const _SectionTitle('Reaching soon', 'Your goals with the nearest target dates.'),
+        const _SectionTitle(_reachingSoonText, _yourGoalsWithTheText),
         CardGrid(
           maxColumns: 3,
           children: [
@@ -147,9 +161,8 @@ class _Dashboard extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 40),
-        _SectionTitle('All goals', '${page.total} ${page.total == 1 ? 'goal' : 'goals'}'),
+        _SectionTitle(_allGoalsText, '${page.total} ${page.total == 1 ? 'goal' : 'goals'}'),
         GoalFiltersBar(
-          key: ValueKey(filters),
           filters: filters,
           sort: state.query.sort,
           onApply: (f) => bloc.add(DashboardFiltersChanged(f)),
@@ -161,7 +174,7 @@ class _Dashboard extends StatelessWidget {
             icon: Icons.error_outline,
             color: AppColors.danger,
             background: AppColors.dangerBg,
-            title: 'Couldn’t update the list.',
+            title: _couldntUpdateTheListText,
             body: failure.message,
           ),
           const SizedBox(height: 16),
@@ -191,11 +204,7 @@ class _Dashboard extends StatelessWidget {
           onPage: (p) => bloc.add(DashboardPageChanged(p)),
         ),
         const SizedBox(height: 16),
-        const Text(
-          'SIP amounts use the return you entered for each goal and are illustrative '
-          'assumptions, not promises.',
-          style: TextStyle(fontSize: 12, color: AppColors.text2),
-        ),
+        const Text(_sipAmountsUseTheText, style: TextStyle(fontSize: 12, color: AppColors.text2)),
       ],
     );
   }
@@ -210,11 +219,11 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const .only(bottom: 16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600)),
+          Text(title, style: const TextStyle(fontSize: 22, fontWeight: .w600)),
           Text(subtitle, style: const TextStyle(color: AppColors.text2)),
         ],
       ),
