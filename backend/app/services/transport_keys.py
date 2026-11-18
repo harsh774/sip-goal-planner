@@ -35,27 +35,30 @@ class TransportKeyService:
         if key := self._active(client_id):
             return key
         try:
-            return self._create(client_id, version=1)
+            # After the active key was revoked, earlier versions exist: continue after them.
+            return self._create(client_id, version=self._latest_version(client_id) + 1)
         except IntegrityError:
             # Another request created it first.
             self._db.rollback()
-            key = self._active(client_id)
-            assert key is not None
-            return key
+            if key := self._active(client_id):
+                return key
+            raise
 
     def rotate(self, client_id: str) -> TransportKey:
         """New active version; the previous one is retired and still accepted for a while."""
         self._check_client(client_id)
-        latest = self._db.scalar(
-            select(func.max(TransportKey.version)).where(TransportKey.client_id == client_id)
-        )
+        latest = self._latest_version(client_id)
         if current := self._active(client_id):
             current.status = TransportKeyStatus.RETIRED
             current.retired_at = datetime.now(UTC)
             self._db.flush()
-        return self._create(client_id, version=(latest or 0) + 1)
+        # Two rotations at once collide on the unique version; rotation is an operator CLI.
+        return self._create(client_id, version=latest + 1)
 
     def revoke(self, client_id: str, version: int) -> None:
+        """Stop accepting a version now. Revoking the active key means the next public-key
+        request issues a new version."""
+        self._check_client(client_id)
         key = self._get(client_id, version)
         if key is None:
             raise StaleKey(version)
@@ -73,6 +76,14 @@ class TransportKeyService:
             if key.retired_at is None or datetime.now(UTC) - key.retired_at > grace:
                 raise StaleKey(version)
         return _parsed(key.id.hex, key.private_key)
+
+    def _latest_version(self, client_id: str) -> int:
+        return (
+            self._db.scalar(
+                select(func.max(TransportKey.version)).where(TransportKey.client_id == client_id)
+            )
+            or 0
+        )
 
     def _active(self, client_id: str) -> TransportKey | None:
         return self._db.scalar(

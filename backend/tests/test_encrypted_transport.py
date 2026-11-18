@@ -44,7 +44,11 @@ def _encrypted(client, method, path, key, *, body=None, form=None, query=None, h
     response = client.request(method, full_path, content=content, headers=h)
     plain = None
     if "x-enc-content-type" in response.headers:
-        plain = json.loads(open_sealed(aes, response.content, response_aad(method, full_path)))
+        plain = json.loads(
+            open_sealed(
+                aes, response.content, response_aad(response.status_code, method, full_path)
+            )
+        )
     return response, plain
 
 
@@ -57,7 +61,8 @@ def test_public_key_is_versioned_per_app_version_and_stable(client, monkeypatch)
     assert first["algorithm"] == "RSA-OAEP-SHA256+AES-256-GCM"
     assert _public_key(client, "0.9.0")["public_key"] != first["public_key"]
     unknown = client.get(f"{API}/crypto/public-key", params={"client_id": "nope"})
-    assert unknown.status_code == 404
+    assert unknown.status_code == 400
+    assert unknown.json()["detail"][0]["code"] == "client_unknown"
 
 
 def test_full_flow_is_encrypted_both_ways(client):
@@ -143,3 +148,67 @@ def test_private_keys_are_encrypted_at_rest(client):
 
 def test_plain_requests_still_work(client):
     assert client.get(f"{API}/goals", headers=auth_headers(client)).status_code == 200
+
+
+def test_bodiless_responses_pass_through_unsealed(client):
+    """204 must not carry a body; sealing one broke HTTP framing."""
+    key = _public_key(client)
+    headers = auth_headers(client)
+    goal = client.post(f"{API}/goals", json=goal_payload(), headers=headers).json()
+
+    deleted, plain = _encrypted(client, "DELETE", f"/goals/{goal['id']}", key, headers=headers)
+    changed, _ = _encrypted(
+        client,
+        "POST",
+        "/auth/me/password",
+        key,
+        body={"current_password": "secret123", "new_password": "fresh123"},
+        headers=headers,
+    )
+
+    assert deleted.status_code == 204 and deleted.content == b"" and plain is None
+    assert "x-enc-content-type" not in deleted.headers
+    assert changed.status_code == 204 and changed.content == b""
+
+
+def test_revoking_the_active_key_issues_a_new_version(client):
+    first = _public_key(client)
+    with SessionLocal() as db:
+        TransportKeyService(db).revoke("1.0.0", first["key_version"])
+
+    second = _public_key(client)
+    response, _ = _encrypted(client, "GET", "/goals", second, headers=auth_headers(client))
+
+    assert second["key_version"] == first["key_version"] + 1
+    assert response.status_code == 200
+
+
+def test_plaintext_query_on_an_encrypted_request_is_rejected(client):
+    key = _public_key(client)
+    aes = os.urandom(32)
+    response = client.get(
+        f"{API}/goals?q=injected",
+        headers={
+            "X-Enc-Client": "1.0.0",
+            "X-Enc-Key-Version": str(key["key_version"]),
+            "X-Enc-Key": wrap_key(key["public_key"], aes),
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"][0]["code"] == "encryption_invalid"
+
+
+def test_oversized_encrypted_body_is_rejected(client):
+    key = _public_key(client)
+    response = client.post(
+        f"{API}/goals",
+        content=b"x" * 1_000_001,
+        headers={
+            "X-Enc-Client": "1.0.0",
+            "X-Enc-Key-Version": str(key["key_version"]),
+            "X-Enc-Key": wrap_key(key["public_key"], os.urandom(32)),
+        },
+    )
+
+    assert response.status_code == 413

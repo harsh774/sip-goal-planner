@@ -322,11 +322,13 @@ Toggled by the lock button in the nav bar; Swagger and plain clients are unaffec
 | 2 | client | Per request: random AES-256 key; body sealed with AES-256-GCM (AAD `req:METHOD:/path`), query sealed with AAD `req:METHOD:/path?`; key wrapped with RSA-OAEP-SHA256. |
 | 3 | client | Sends `X-Enc-Client`, `X-Enc-Key-Version`, `X-Enc-Key`, `X-Enc-Content-Type`, `X-Enc-Query`; body = sealed payload. |
 | 4 | server | `EncryptedTransportMiddleware` unwraps the key with that version's private key, restores the body, content type and query, runs the request normally. |
-| 5 | server | Seals the response (errors included) with the same AES key, AAD `res:METHOD:/path`; real content type in `X-Enc-Content-Type`. |
+| 5 | server | Seals the response (errors included) with the same AES key, AAD `res:STATUS:METHOD:/path`; real content type in `X-Enc-Content-Type`. `204`/`304` and `HEAD` responses carry no body and pass through unsealed. |
 | 6 | client | Opens the response with the key it kept. |
 
 Sealed format: `base64(nonce[12] || ciphertext || tag[16])`. The AAD binds a payload to its
-method and path, so it can't be replayed against another endpoint.
+method and path (the raw, percent-encoded path the client sent), and a response also to its
+status. A plaintext query on an encrypted request is rejected (it could only have been
+injected), bodies over 1 MB get `413`, and an unknown client id gets `400 client_unknown`.
 
 **Keys and rotation.** The client id is the app version, so each release has its own keys and
 retiring an old release means revoking its key; `TRANSPORT_CLIENT_IDS` lists the supported
@@ -339,6 +341,9 @@ the private key (encrypted at rest with `DATA_ENCRYPTION_KEY`), and a status:
 - `revoked`: `--revoke <version>`; rejected at once.
 
 A stale version gets `409 key_version_stale`; the client refetches the key and retries once.
+Revoking the active key is allowed: the next public-key request issues the next version.
+Rotation is an operator CLI; two rotations of one client at the same instant would collide on
+the unique version and one would fail.
 
 **Limits.** Not a substitute for HTTPS: the public key itself arrives over TLS. No replay
 window beyond the endpoint binding (a captured request can be re-sent to the same endpoint).

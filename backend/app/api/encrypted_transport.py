@@ -32,6 +32,13 @@ from app.db.session import SessionLocal
 from app.services.transport_keys import StaleKey, TransportKeyService, UnknownClient
 
 EXPOSED_HEADERS = ["x-enc-content-type"]
+MAX_BODY_BYTES = 1_000_000
+# Responses that must not carry a body; they pass through unsealed.
+_BODILESS = {204, 304}
+
+
+class _TooLarge(Exception):
+    pass
 
 
 def _error(status: int, code: str, message: str) -> JSONResponse:
@@ -61,7 +68,9 @@ class EncryptedTransportMiddleware:
             await self.app(scope, receive, send)
             return
 
-        method, path = scope["method"], scope["path"]
+        method = scope["method"]
+        # The raw path is what the client signed; the decoded one can differ.
+        path = scope.get("raw_path", scope["path"].encode()).decode("latin-1")
         try:
             version = int(headers.get("x-enc-key-version", ""))
             aes_key = await run_in_threadpool(
@@ -70,11 +79,18 @@ class EncryptedTransportMiddleware:
             body = await _read_body(receive)
             plain_body = open_sealed(aes_key, body, request_aad(method, path)) if body else b""
             sealed_query = headers.get("x-enc-query")
-            query = (
-                open_sealed(aes_key, sealed_query, request_aad(method, path) + b"?")
-                if sealed_query
-                else scope["query_string"]
+            if sealed_query:
+                query = open_sealed(aes_key, sealed_query, request_aad(method, path) + b"?")
+            elif scope["query_string"]:
+                # An encrypted request never carries a plaintext query; one here was injected.
+                raise ValueError("Plaintext query on an encrypted request")
+            else:
+                query = b""
+        except _TooLarge:
+            await _error(413, "payload_too_large", "The request body is too large.")(
+                scope, receive, send
             )
+            return
         except UnknownClient:
             await _error(400, "client_unknown", "Unknown client id.")(scope, receive, send)
             return
@@ -111,14 +127,19 @@ class EncryptedTransportMiddleware:
         async def send_sealed(message: Message) -> None:
             if message["type"] == "http.response.start":
                 start.update(message)
+                if message["status"] in _BODILESS or method == "HEAD":
+                    await send(message)
                 return
             if message["type"] != "http.response.body":
+                await send(message)
+                return
+            if start["status"] in _BODILESS or method == "HEAD":
                 await send(message)
                 return
             chunks.append(message.get("body", b""))
             if message.get("more_body", False):
                 return
-            sealed = seal(aes_key, b"".join(chunks), response_aad(method, path))
+            sealed = seal(aes_key, b"".join(chunks), response_aad(start["status"], method, path))
             out = MutableHeaders(raw=list(start.get("headers", [])))
             out["x-enc-content-type"] = out.get("content-type", "application/octet-stream")
             out["content-type"] = "text/plain; charset=utf-8"
@@ -130,9 +151,14 @@ class EncryptedTransportMiddleware:
 
 
 async def _read_body(receive: Receive) -> bytes:
-    body, more = b"", True
+    chunks: list[bytes] = []
+    size, more = 0, True
     while more:
         message = await receive()
-        body += message.get("body", b"")
+        chunk = message.get("body", b"")
+        size += len(chunk)
+        if size > MAX_BODY_BYTES:
+            raise _TooLarge
+        chunks.append(chunk)
         more = message.get("more_body", False)
-    return body
+    return b"".join(chunks)

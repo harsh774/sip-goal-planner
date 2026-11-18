@@ -3,7 +3,9 @@
 The client makes a fresh AES-256 key per request and wraps it with the server's
 RSA public key (RSA-OAEP, SHA-256). Payloads are sealed with AES-256-GCM as
 base64(nonce[12] || ciphertext || tag[16]). The request's method and path are the
-associated data, so a sealed body can't be replayed against another endpoint.
+associated data (plus the status for responses), so a sealed payload can't be
+moved to another endpoint or given another status. Paths are the raw, percent-encoded
+request path as the client sent it.
 """
 
 import base64
@@ -70,5 +72,5 @@ def request_aad(method: str, path: str) -> bytes:
     return f"req:{method.upper()}:{path}".encode()
 
 
-def response_aad(method: str, path: str) -> bytes:
-    return f"res:{method.upper()}:{path}".encode()
+def response_aad(status: int, method: str, path: str) -> bytes:
+    return f"res:{status}:{method.upper()}:{path}".encode()

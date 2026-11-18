@@ -1,9 +1,10 @@
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query, status
 from pydantic import BaseModel
 
 from app.api.deps import DbSession
+from app.core.errors import FieldError
 from app.core.transport_crypto import ALGORITHM
 from app.services.transport_keys import TransportKeyService, UnknownClient
 
@@ -28,7 +29,9 @@ def public_key(client_id: Annotated[str, Query(min_length=1, max_length=50)], db
     try:
         key = TransportKeyService(db).active(client_id)
     except UnknownClient:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Unknown client id.") from None
+        raise FieldError(
+            "client_id", "client_unknown", "Unknown client id.", status.HTTP_400_BAD_REQUEST
+        ) from None
     return PublicKeyOut(
         client_id=key.client_id,
         key_version=key.version,
