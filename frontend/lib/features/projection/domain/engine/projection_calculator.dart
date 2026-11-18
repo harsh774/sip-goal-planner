@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import '../../../../core/domain/rounding.dart';
 import '../entities/projection.dart';
 
 /// SIP projection engine. Pure; mirrors backend/app/services/projection.py and
@@ -7,7 +8,9 @@ import '../entities/projection.dart';
 ///
 /// - Effective monthly rate: i = (1 + R)^(1/12) - 1.
 /// - SIP paid at the start of each month; step-up once a year.
-/// - Required SIP rounded up to a whole unit so the plan still reaches the target.
+/// - Required SIP rounded up so the plan still reaches the target: to a whole
+///   unit, or to 0.01 when the target or corpus was entered with decimals.
+/// - Every reported amount is rounded half-up to 2 decimal places.
 abstract final class ProjectionCalculator {
   static Projection project(ProjectionInput input) {
     final months = monthsBetween(input.asOf, input.targetDate);
@@ -19,9 +22,9 @@ abstract final class ProjectionCalculator {
       asOf: input.asOf,
       months: months,
       monthlyRate: i,
-      corpusFutureValue: corpusFv,
-      gap: math.max(gap, 0),
-      todayValue: input.target / math.pow(1 + input.inflation, months / 12),
+      corpusFutureValue: roundMoney(corpusFv),
+      gap: roundMoney(math.max(gap, 0)),
+      todayValue: roundMoney(input.target / math.pow(1 + input.inflation, months / 12)),
       onTrack: gap <= 0,
       level: _plan(input, months, i, 0, gap),
       stepUp: _plan(input, months, i, input.annualStepUp, gap),
@@ -50,13 +53,14 @@ abstract final class ProjectionCalculator {
   }
 
   static Plan _plan(ProjectionInput input, int months, double i, double stepUp, double gap) {
-    final firstSip = _wholeUnitsUp(requiredFirstSip(gap, months, i, stepUp));
+    final unit = sipUnit(input);
+    final firstSip = _roundUp(requiredFirstSip(gap, months, i, stepUp), unit);
     var balance = input.corpus;
     var invested = input.corpus;
     final rows = <ScheduleRow>[];
 
     for (var year = 0; year * 12 < months; year++) {
-      final sip = firstSip == 0 ? 0.0 : _wholeUnitsUp(firstSip * math.pow(1 + stepUp, year));
+      final sip = firstSip == 0 ? 0.0 : _roundUp(firstSip * math.pow(1 + stepUp, year), unit);
       final monthsInYear = math.min(12, months - year * 12);
       for (var m = 0; m < monthsInYear; m++) {
         balance = (balance + sip) * (1 + i);
@@ -69,16 +73,19 @@ abstract final class ProjectionCalculator {
           calendarYear: endIndex ~/ 12,
           months: monthsInYear,
           monthlySip: sip,
-          investedToDate: invested,
-          closingBalance: balance,
-          goalPct: balance / input.target * 100,
+          investedToDate: roundMoney(invested),
+          closingBalance: roundMoney(balance),
+          goalPct: roundMoney(balance / input.target * 100),
         ),
       );
     }
     return Plan(annualStepUp: stepUp, firstYearSip: firstSip, rows: rows);
   }
 
+  static double sipUnit(ProjectionInput input) =>
+      hasCents(input.target) || hasCents(input.corpus) ? 0.01 : 1;
+
   // Round to 6 places first so float noise (21000.000000000004) doesn't add a unit.
-  static double _wholeUnitsUp(double value) =>
-      (double.parse(value.toStringAsFixed(6))).ceilToDouble();
+  static double _roundUp(double value, double unit) =>
+      roundMoney(double.parse((value / unit).toStringAsFixed(6)).ceilToDouble() * unit);
 }

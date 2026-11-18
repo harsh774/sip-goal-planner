@@ -15,6 +15,13 @@ void main() {
     expect(MoneyFormatter.short(1200000, Currency.usd), r'$1.2M');
   });
 
+  test('amounts with cents show two decimals, rounded half-up', () {
+    expect(MoneyFormatter.full(17640.8, Currency.inr), '₹17,640.80');
+    expect(MoneyFormatter.full(1234.565, Currency.usd), r'$1,234.57');
+    expect(MoneyFormatter.full(1.005, Currency.usd), r'$1.01');
+    expect(MoneyFormatter.full(32205.001, Currency.inr), '₹32,205');
+  });
+
   test('JPY has no decimals', () {
     expect(MoneyFormatter.full(1234.6, Currency.jpy), '¥1,235');
   });

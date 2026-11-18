@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/domain/rounding.dart';
+
 class ProjectionInput extends Equatable {
   const ProjectionInput({
     required this.target,
@@ -52,7 +54,7 @@ class ScheduleRow extends Equatable {
   final double closingBalance;
   final double goalPct;
 
-  double get growthToDate => closingBalance - investedToDate;
+  double get growthToDate => roundMoney(closingBalance - investedToDate);
 
   @override
   List<Object?> get props => [
@@ -76,7 +78,7 @@ class Plan extends Equatable {
   double get finalYearSip => rows.isEmpty ? firstYearSip : rows.last.monthlySip;
   double get totalInvested => rows.last.investedToDate;
   double get finalBalance => rows.last.closingBalance;
-  double get growth => finalBalance - totalInvested;
+  double get growth => roundMoney(finalBalance - totalInvested);
 
   @override
   List<Object?> get props => [annualStepUp, firstYearSip, rows];

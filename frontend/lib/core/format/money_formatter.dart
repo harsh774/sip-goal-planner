@@ -1,6 +1,7 @@
 import 'package:intl/intl.dart';
 
 import '../domain/currency.dart';
+import '../domain/rounding.dart';
 
 /// Formats amounts the way the design shows them: Indian lakh/crore for INR,
 /// compact notation for other currencies.
@@ -8,12 +9,16 @@ abstract final class MoneyFormatter {
   static const _lakh = 1e5;
   static const _crore = 1e7;
 
-  /// ₹32,205 · $1,250
-  static String full(num amount, Currency currency) => NumberFormat.currency(
-    locale: currency.locale,
-    symbol: currency.symbol,
-    decimalDigits: 0,
-  ).format(amount.round());
+  /// ₹32,205 · ₹17,640.80 · $1,250 — cents only when the amount has them.
+  static String full(num amount, Currency currency) {
+    final rounded = roundMoney(amount.toDouble());
+    final digits = hasCents(rounded) ? currency.decimals : 0;
+    return NumberFormat.currency(
+      locale: currency.locale,
+      symbol: currency.symbol,
+      decimalDigits: digits,
+    ).format(digits == 0 ? rounded.round() : rounded);
+  }
 
   /// ₹1.00 Cr · ₹25.00 L · $1.2M
   static String short(num amount, Currency currency) {

@@ -59,6 +59,20 @@ void main() {
     expect(result.stepUp.finalYearSip, greaterThan(result.level.finalYearSip));
   });
 
+  test('decimal inputs give SIPs in cents and every amount at most two decimals', () {
+    final raw = _vectors.cast<Map<String, dynamic>>().firstWhere(
+      (c) => c['name'] == 'decimal_inputs_round_to_cents',
+    );
+    final result = ProjectionCalculator.project(_input(raw['input'] as Map<String, dynamic>));
+
+    expect(result.stepUp.rows[1].monthlySip, 15340.57); // ceil_cents(14,270.29 × 1.075)
+    for (final row in [...result.level.rows, ...result.stepUp.rows]) {
+      for (final v in [row.monthlySip, row.investedToDate, row.closingBalance, row.growthToDate]) {
+        expect(v * 100, closeTo((v * 100).roundToDouble(), 1e-6));
+      }
+    }
+  });
+
   test('months between drops a trailing partial month', () {
     expect(ProjectionCalculator.monthsBetween(DateTime(2026, 11, 18), DateTime(2027, 11, 17)), 11);
     expect(ProjectionCalculator.monthsBetween(DateTime(2026, 11, 18), DateTime(2026, 11, 30)), 1);

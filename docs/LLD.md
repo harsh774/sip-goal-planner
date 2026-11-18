@@ -76,7 +76,9 @@ today_value = T / (1 + π)^(n/12)
 - Strings are parsed with `Decimal`, never `float`, so `"0.1"` stores exactly `10`.
 - More than 2 decimal places is rejected, not rounded (`code: too_many_decimals`). For `JPY` (0 minor digits) any fraction is rejected.
 - The scale is 100 for every currency, including `JPY`; `CURRENCY_DECIMALS` only governs validation and display.
-- Required SIP: computed in floating point, rounded **up** to the next whole currency unit so the plan still reaches the target.
+- Required SIP: computed in floating point, rounded **up** so the plan still reaches the target: to the next whole currency unit, or to the next 0.01 when the target or current corpus was entered with decimals.
+- Every other reported amount (balances, invested, growth, today's value, totals) is rounded half-up to 2 decimal places. Both engines use the same rule (round to 6 places, then half-up), so they agree to the cent.
+- Display: amounts with cents show 2 decimals (`₹17,640.80`); whole amounts show none (`₹32,205`); JPY never shows decimals.
 - Table values and `today_value`: rounded to 2 decimals for display.
 
 ### 1.4 Year-by-year schedule
