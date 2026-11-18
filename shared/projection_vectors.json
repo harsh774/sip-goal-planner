@@ -1,0 +1,138 @@
+{
+  "description": "Shared projection test cases. Both the Python and Dart engines must reproduce every expected value. Expected values were computed by an independent script (closed form for level SIPs).",
+  "cases": [
+    {
+      "name": "worked_example",
+      "input": {
+        "as_of": "2026-11-18",
+        "target_date": "2038-11-18",
+        "target_amount": "10000000.00",
+        "current_corpus": "20000.00",
+        "expected_return_pct": "12",
+        "annual_step_up_pct": "10",
+        "inflation_pct": "6"
+      },
+      "expected": {
+        "months": 144,
+        "level_sip": "32205.00",
+        "step_up_first_sip": "20519.00",
+        "today_value": "4969693.64",
+        "on_track": false
+      }
+    },
+    {
+      "name": "zero_return",
+      "input": {
+        "as_of": "2026-01-01",
+        "target_date": "2031-01-01",
+        "target_amount": "600000.00",
+        "current_corpus": "0.00",
+        "expected_return_pct": "0",
+        "annual_step_up_pct": "0",
+        "inflation_pct": "0"
+      },
+      "expected": {
+        "months": 60,
+        "level_sip": "10000.00",
+        "step_up_first_sip": "10000.00",
+        "today_value": "600000.00",
+        "on_track": false
+      }
+    },
+    {
+      "name": "zero_step_up",
+      "input": {
+        "as_of": "2026-11-18",
+        "target_date": "2036-11-18",
+        "target_amount": "5000000.00",
+        "current_corpus": "100000.00",
+        "expected_return_pct": "10",
+        "annual_step_up_pct": "0",
+        "inflation_pct": "5"
+      },
+      "expected": {
+        "months": 120,
+        "level_sip": "23532.00",
+        "step_up_first_sip": "23532.00",
+        "today_value": "3069566.27",
+        "on_track": false
+      }
+    },
+    {
+      "name": "under_one_year",
+      "input": {
+        "as_of": "2026-11-18",
+        "target_date": "2027-06-18",
+        "target_amount": "100000.00",
+        "current_corpus": "0.00",
+        "expected_return_pct": "8",
+        "annual_step_up_pct": "10",
+        "inflation_pct": "6"
+      },
+      "expected": {
+        "months": 7,
+        "level_sip": "13923.00",
+        "step_up_first_sip": "13923.00",
+        "today_value": "96658.10",
+        "on_track": false
+      }
+    },
+    {
+      "name": "already_on_track",
+      "input": {
+        "as_of": "2026-11-18",
+        "target_date": "2031-11-18",
+        "target_amount": "100000.00",
+        "current_corpus": "200000.00",
+        "expected_return_pct": "8",
+        "annual_step_up_pct": "5",
+        "inflation_pct": "6"
+      },
+      "expected": {
+        "months": 60,
+        "level_sip": "0.00",
+        "step_up_first_sip": "0.00",
+        "today_value": "74725.82",
+        "on_track": true
+      }
+    },
+    {
+      "name": "upper_bounds",
+      "input": {
+        "as_of": "2026-11-18",
+        "target_date": "2056-11-18",
+        "target_amount": "1000000000.00",
+        "current_corpus": "0.00",
+        "expected_return_pct": "30",
+        "annual_step_up_pct": "25",
+        "inflation_pct": "12"
+      },
+      "expected": {
+        "months": 360,
+        "level_sip": "8258.00",
+        "step_up_first_sip": "1989.00",
+        "today_value": "33377923.88",
+        "on_track": false
+      }
+    },
+    {
+      "name": "partial_month_dropped",
+      "input": {
+        "as_of": "2026-11-18",
+        "target_date": "2027-11-17",
+        "target_amount": "120000.00",
+        "current_corpus": "5000.00",
+        "expected_return_pct": "7.5",
+        "annual_step_up_pct": "5",
+        "inflation_pct": "4.5"
+      },
+      "expected": {
+        "months": 11,
+        "level_sip": "10052.00",
+        "step_up_first_sip": "10052.00",
+        "today_value": "115254.52",
+        "on_track": false
+      }
+    }
+  ]
+}
