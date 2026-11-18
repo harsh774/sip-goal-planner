@@ -192,9 +192,9 @@ class GoalFormBloc extends Bloc<GoalFormEvent, GoalFormState> {
       targetAmount: '',
       targetDate: template == null ? null : DateTime(now.year + 5, now.month, now.day),
       currentCorpus: '0',
-      expectedReturn: '12',
+      expectedReturn: '10',
       annualStepUp: '0',
-      inflation: '6',
+      inflation: '2',
     );
   }
 

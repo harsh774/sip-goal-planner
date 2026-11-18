@@ -7,6 +7,7 @@ import '../../../../app/theme/app_theme.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/domain/currency.dart';
 import '../../../../core/domain/scaled.dart';
+import '../../../../core/format/amount_words.dart';
 import '../../../../core/format/money_formatter.dart';
 import '../../../../core/presentation/haptics/haptics.dart';
 import '../../../../shared/widgets/app_shell.dart';
@@ -373,6 +374,7 @@ class _GoalFormState extends State<_GoalForm> {
               inputFormatters: [_decimal],
               decoration: InputDecoration(
                 labelText: 'Target amount (${_currency.symbol.trim()})',
+                helperText: _inWords(_target.text),
                 errorText: errors['target_amount'],
               ),
             ),
@@ -400,6 +402,7 @@ class _GoalFormState extends State<_GoalForm> {
               inputFormatters: [_decimal],
               decoration: InputDecoration(
                 labelText: 'Already invested for this goal (${_currency.symbol.trim()})',
+                helperText: _inWords(_corpus.text),
                 errorText: errors['current_corpus'],
               ),
             ),
@@ -489,6 +492,12 @@ class _GoalFormState extends State<_GoalForm> {
       ),
     );
   }
+
+  /// "5 lakh 55 thousand 5 rupees" under an amount field, once it holds a valid number.
+  String? _inWords(String text) => switch (Scaled.tryParse(text)) {
+    final v? when v > 0 => AmountWords.of(v, _currency),
+    _ => null,
+  };
 
   Widget _row(List<Widget> children) => LayoutBuilder(
     builder: (context, c) => c.maxWidth >= 520
