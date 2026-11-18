@@ -43,6 +43,16 @@ final class AuthDefaultCurrencyChanged extends AuthEvent {
   List<Object?> get props => [currency];
 }
 
+/// The profile page saved a change; keep the header and menus in step.
+final class AuthUserUpdated extends AuthEvent {
+  const AuthUserUpdated(this.user);
+
+  final User user;
+
+  @override
+  List<Object?> get props => [user];
+}
+
 final class AuthFailureCleared extends AuthEvent {
   const AuthFailureCleared();
 }

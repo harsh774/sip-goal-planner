@@ -35,6 +35,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthRegisterRequested>(_onRegister, transformer: droppable());
     on<AuthLogoutRequested>(_onLogout);
     on<AuthDefaultCurrencyChanged>(_onCurrencyChanged);
+    on<AuthUserUpdated>((e, emit) => emit(state.copyWith(user: e.user)));
     on<AuthFailureCleared>((_, emit) => emit(state.copyWith(clearFailure: true)));
     on<_AuthSessionExpired>(_onSessionExpired);
     _sessionSub = session.expired.listen((_) => add(const _AuthSessionExpired()));

@@ -14,4 +14,8 @@ abstract interface class AuthRepository {
   Future<void> logout();
 
   Future<Result<User>> updateDefaultCurrency(Currency currency);
+
+  Future<Result<User>> updateName({required String firstName, required String lastName});
+
+  Future<Result<void>> changePassword({required String current, required String next});
 }

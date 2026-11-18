@@ -45,4 +45,12 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Result<User>> updateDefaultCurrency(Currency currency) =>
       guard(() => _remote.updateDefaultCurrency(currency));
+
+  @override
+  Future<Result<User>> updateName({required String firstName, required String lastName}) =>
+      guard(() => _remote.updateName(firstName: firstName, lastName: lastName));
+
+  @override
+  Future<Result<void>> changePassword({required String current, required String next}) =>
+      guard(() => _remote.changePassword(current: current, next: next));
 }

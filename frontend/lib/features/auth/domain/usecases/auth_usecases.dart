@@ -51,6 +51,40 @@ class Logout implements UseCase<void, NoParams> {
   }
 }
 
+class NameChange {
+  const NameChange(this.firstName, this.lastName);
+
+  final String firstName;
+  final String lastName;
+}
+
+class PasswordChange {
+  const PasswordChange(this.current, this.next);
+
+  final String current;
+  final String next;
+}
+
+class UpdateName implements UseCase<User, NameChange> {
+  UpdateName(this._repo);
+
+  final AuthRepository _repo;
+
+  @override
+  Future<Result<User>> call(NameChange c) =>
+      _repo.updateName(firstName: c.firstName.trim(), lastName: c.lastName.trim());
+}
+
+class ChangePassword implements UseCase<void, PasswordChange> {
+  ChangePassword(this._repo);
+
+  final AuthRepository _repo;
+
+  @override
+  Future<Result<void>> call(PasswordChange c) =>
+      _repo.changePassword(current: c.current, next: c.next);
+}
+
 class UpdateDefaultCurrency implements UseCase<User, Currency> {
   UpdateDefaultCurrency(this._repo);
 

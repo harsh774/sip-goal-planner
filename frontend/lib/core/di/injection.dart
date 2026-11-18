@@ -6,6 +6,7 @@ import '../../features/auth/data/repositories/auth_repository_impl.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
 import '../../features/auth/domain/usecases/auth_usecases.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
+import '../../features/auth/presentation/bloc/profile_cubit.dart';
 import '../../features/goals/data/datasources/goals_remote_datasource.dart';
 import '../../features/goals/data/repositories/goals_repository_impl.dart';
 import '../../features/goals/domain/repositories/goals_repository.dart';
@@ -45,6 +46,8 @@ Future<void> configureDependencies() async {
     ..registerLazySingleton(() => Register(sl()))
     ..registerLazySingleton(() => Logout(sl()))
     ..registerLazySingleton(() => UpdateDefaultCurrency(sl()))
+    ..registerLazySingleton(() => UpdateName(sl()))
+    ..registerLazySingleton(() => ChangePassword(sl()))
     ..registerLazySingleton(() => GetGoals(sl()))
     ..registerLazySingleton(() => GetGoalsSummary(sl()))
     ..registerLazySingleton(() => GetGoal(sl()))
@@ -63,6 +66,7 @@ Future<void> configureDependencies() async {
         session: sl(),
       ),
     )
+    ..registerFactory(() => ProfileCubit(updateName: sl(), changePassword: sl()))
     ..registerFactory(() => DashboardBloc(getGoals: sl(), getSummary: sl(), planGoals: sl()))
     ..registerFactory(() => GoalFormBloc(getGoal: sl(), saveGoal: sl()))
     ..registerFactory(() => PlanPreviewCubit(sl()))

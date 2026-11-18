@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/auth/presentation/bloc/auth_bloc.dart';
 import '../features/auth/presentation/pages/auth_page.dart';
+import '../features/auth/presentation/pages/profile_page.dart';
 import '../features/goals/domain/entities/goal_type.dart';
 import '../features/goals/presentation/pages/goal_form_page.dart';
 import '../features/goals/presentation/pages/dashboard_page.dart';
@@ -17,6 +18,7 @@ abstract final class Routes {
   static const register = '/register';
   static const goals = '/goals';
   static const newGoal = '/goals/new';
+  static const profile = '/profile';
 
   static String goal(String id) => '/goals/$id';
   static String editGoal(String id) => '/goals/$id/edit';
@@ -40,7 +42,11 @@ GoRouter buildRouter(AuthBloc auth) {
         AuthStatus.unauthenticated =>
           location == Routes.login || location == Routes.register ? null : withFrom(Routes.login),
         AuthStatus.authenticated =>
-          atGate ? (from != null && from.startsWith(Routes.goals) ? from : Routes.goals) : null,
+          atGate
+              ? (from != null && (from.startsWith(Routes.goals) || from == Routes.profile)
+                    ? from
+                    : Routes.goals)
+              : null,
       };
     },
     routes: [
@@ -53,6 +59,7 @@ GoRouter buildRouter(AuthBloc auth) {
         path: Routes.register,
         builder: (_, _) => const AuthPage(mode: AuthMode.register),
       ),
+      GoRoute(path: Routes.profile, builder: (_, _) => const ProfilePage()),
       GoRoute(
         path: Routes.goals,
         builder: (_, _) => const DashboardPage(),
