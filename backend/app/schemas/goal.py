@@ -56,7 +56,7 @@ class GoalCreate(BaseModel):
     current_corpus: Corpus = 0
     expected_return_pct: ReturnPct
     annual_step_up_pct: StepUpPct = 0
-    inflation_pct: InflationPct = 600
+    inflation_pct: InflationPct = 200
 
 
 class GoalUpdate(BaseModel):

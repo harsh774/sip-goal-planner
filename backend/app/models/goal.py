@@ -59,7 +59,7 @@ class Goal(Base):
         BigInteger, nullable=False, server_default=text("0")
     )
     inflation_bp: Mapped[int] = mapped_column(
-        BigInteger, nullable=False, server_default=text("600")
+        BigInteger, nullable=False, server_default=text("200")
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

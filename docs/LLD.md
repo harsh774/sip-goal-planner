@@ -213,7 +213,7 @@ Defined once in Python (`app/models/enums.py`) as `StrEnum`s and stored as nativ
 | `current_corpus` | bigint | hundredths; default 0, CHECK ≥ 0 |
 | `expected_return_bp` | bigint | basis points; CHECK 0–3000 |
 | `annual_step_up_bp` | bigint | basis points; default 0, CHECK 0–2500 |
-| `inflation_bp` | bigint | basis points; default 600, CHECK 0–1200 |
+| `inflation_bp` | bigint | basis points; default 200, CHECK 0–1200 |
 | `created_at` | timestamptz | default now() |
 | `updated_at` | timestamptz | set on every write |
 | `deleted_at` | timestamptz | null = active. Soft delete. |

@@ -192,3 +192,14 @@ def test_projection_endpoint_matches_worked_example(client):
     assert body["today_value"] == "4969693.64"
     assert len(body["level"]["rows"]) == 12
     assert "illustrative" in body["assumptions_note"]
+
+
+def test_inflation_defaults_to_two_percent(client):
+    headers = auth_headers(client)
+    payload = goal_payload()
+    del payload["inflation_pct"]
+
+    created = client.post(f"{API}/goals", json=payload, headers=headers)
+
+    assert created.status_code == 201
+    assert created.json()["inflation_pct"] == "2.00"
