@@ -1,7 +1,7 @@
 import uuid
 from dataclasses import asdict
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Query, Response, status
 
@@ -12,7 +12,9 @@ from app.schemas.projection import ProjectionOut
 
 router = APIRouter(prefix="/goals", tags=["goals"])
 
-_NOT_FOUND = {404: {"description": "Goal not found, deleted, or owned by another user."}}
+_NOT_FOUND: dict[int | str, dict[str, Any]] = {
+    404: {"description": "Goal not found, deleted, or owned by another user."}
+}
 
 
 @router.get("", response_model=GoalPageOut, summary="List goals (filtered, sorted, paginated)")

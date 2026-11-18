@@ -2,7 +2,7 @@
 
 import re
 from datetime import date
-from typing import Annotated
+from typing import Annotated, LiteralString
 
 from email_validator import EmailNotValidError, validate_email
 from pydantic import AfterValidator, BeforeValidator
@@ -47,7 +47,7 @@ def _check_name(value: str) -> str:
 def _person_name(label: str):
     def check(value: str) -> str:
         if not value:
-            raise PydanticCustomError("name_required", f"Enter your {label}.")
+            raise PydanticCustomError("name_required", "Enter your {label}.", {"label": label})
         if len(value) > 50:
             raise PydanticCustomError("name_too_long", "Use at most 50 characters.")
         return value
@@ -108,10 +108,14 @@ TargetAmount = Annotated[Scaled, AfterValidator(_target_amount)]
 Corpus = Annotated[Scaled, AfterValidator(_corpus)]
 
 
-def _bp_range(max_pct: int, code: str, label: str):
+def _bp_range(max_pct: int, code: LiteralString, label: str):
     def check(value: int) -> int:
         if not 0 <= value <= max_pct * 100:
-            raise PydanticCustomError(code, f"{label} must be between 0% and {max_pct}%.")
+            raise PydanticCustomError(
+                code,
+                "{label} must be between 0% and {max_pct}%.",
+                {"label": label, "max_pct": max_pct},
+            )
         return value
 
     return AfterValidator(check)
@@ -128,7 +132,9 @@ def _target_date(value: date) -> date:
         raise PydanticCustomError("date_past", "Target date must be in the future.")
     if value.year > today.year + MAX_YEARS_AHEAD:
         raise PydanticCustomError(
-            "date_too_far", f"Target date must be within {MAX_YEARS_AHEAD} years."
+            "date_too_far",
+            "Target date must be within {years} years.",
+            {"years": MAX_YEARS_AHEAD},
         )
     return value
 

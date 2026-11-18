@@ -32,12 +32,12 @@ def _encrypted(client, method, path, key, *, body=None, form=None, query=None, h
         **(headers or {}),
     }
     content = None
-    if body is not None or form is not None:
-        raw = json.dumps(body).encode() if body is not None else urlencode(form).encode()
-        h["X-Enc-Content-Type"] = (
-            "application/json" if body is not None else "application/x-www-form-urlencoded"
-        )
-        content = seal(aes, raw, request_aad(method, full_path))
+    if body is not None:
+        h["X-Enc-Content-Type"] = "application/json"
+        content = seal(aes, json.dumps(body).encode(), request_aad(method, full_path))
+    elif form is not None:
+        h["X-Enc-Content-Type"] = "application/x-www-form-urlencoded"
+        content = seal(aes, urlencode(form).encode(), request_aad(method, full_path))
     if query:
         sealed_q = seal(aes, urlencode(query).encode(), request_aad(method, full_path) + b"?")
         h["X-Enc-Query"] = sealed_q.decode()
@@ -76,10 +76,12 @@ def test_full_flow_is_encrypted_both_ways(client):
         key,
         form={"username": "asha@example.com", "password": "secret123"},
     )
+    assert token is not None
     auth = {"Authorization": f"Bearer {token['access_token']}"}
     created, goal = _encrypted(client, "POST", "/goals", key, body=goal_payload(), headers=auth)
     listed, page = _encrypted(client, "GET", "/goals", key, query={"q": "education"}, headers=auth)
 
+    assert goal is not None and page is not None
     assert login.status_code == 200 and created.status_code == 201
     assert b"Daughter" not in created.content  # the wire carries ciphertext only
     assert goal["name"] == "Daughter's education"

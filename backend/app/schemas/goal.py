@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, JsonValue, field_validator
 from pydantic_core import PydanticCustomError
 
 from app.models import Goal
@@ -20,7 +20,7 @@ from app.schemas.fields import (
 )
 from app.schemas.money import ScaledOut
 
-_EXAMPLE = {
+_EXAMPLE: dict[str, JsonValue] = {
     "name": "Daughter's education",
     "goal_type": "education",
     "currency": "INR",

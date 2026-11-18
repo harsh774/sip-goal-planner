@@ -40,7 +40,11 @@ def _field_from_loc(loc: tuple) -> str | None:
     return ".".join(parts) if parts else None
 
 
-async def request_validation_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
+# Handlers take `Exception`, as Starlette's handler type requires, and narrow inside.
+
+
+async def request_validation_handler(_: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, RequestValidationError)
     detail = [
         {
             "field": _field_from_loc(tuple(err.get("loc", ()))),
@@ -55,12 +59,14 @@ async def request_validation_handler(_: Request, exc: RequestValidationError) ->
     )
 
 
-async def field_error_handler(_: Request, exc: FieldError) -> JSONResponse:
+async def field_error_handler(_: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, FieldError)
     return JSONResponse(
         status_code=exc.status_code,
         content={"detail": [{"field": exc.field, "code": exc.code, "message": exc.message}]},
     )
 
 
-async def not_found_handler(_: Request, exc: NotFoundError) -> JSONResponse:
+async def not_found_handler(_: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, NotFoundError)
     return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"detail": exc.message})

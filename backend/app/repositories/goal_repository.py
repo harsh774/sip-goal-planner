@@ -42,7 +42,7 @@ class GoalRepository:
         return self._db.scalars(stmt).all()
 
     @staticmethod
-    def _matching(user_id: uuid.UUID, f: GoalFilters) -> Select[tuple[Goal]]:
+    def _matching(user_id: uuid.UUID, f: GoalFilters) -> Select[Goal]:
         stmt = select(Goal).where(Goal.user_id == user_id, Goal.deleted_at.is_(None))
         if f.currency is not None:
             stmt = stmt.where(Goal.currency == f.currency)

@@ -75,4 +75,5 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    # Required fields come from the environment, which the type checker can't see.
+    return Settings()  # pyright: ignore[reportCallIssue]
