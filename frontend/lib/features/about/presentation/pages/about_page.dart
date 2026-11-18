@@ -19,6 +19,7 @@ class AboutPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final currency = context.select((AuthBloc b) => b.state.user?.defaultCurrency) ?? Currency.inr;
     return AppShell(
+      showAboutLink: false,
       child: Column(
         crossAxisAlignment: .stretch,
         children: [

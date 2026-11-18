@@ -20,7 +20,13 @@ const _accountMenuText = 'Account menu';
 /// Page frame from the design: black header with the account menu, centred
 /// content up to 1120 px, and the footer pinned to the bottom of short pages.
 class AppShell extends StatelessWidget {
-  const AppShell({super.key, required this.child, this.extendedDisclaimer = false, this.bottomBar});
+  const AppShell({
+    super.key,
+    required this.child,
+    this.extendedDisclaimer = false,
+    this.bottomBar,
+    this.showAboutLink = true,
+  });
 
   final Widget child;
   final bool extendedDisclaimer;
@@ -28,10 +34,13 @@ class AppShell extends StatelessWidget {
   /// Pinned under the scrolling content, e.g. the plan preview on phones.
   final Widget? bottomBar;
 
+  /// Off on the About page itself.
+  final bool showAboutLink;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const _Header(),
+      appBar: _Header(showAboutLink: showAboutLink),
       bottomNavigationBar: bottomBar,
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -48,7 +57,9 @@ class AppShell extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget implements PreferredSizeWidget {
-  const _Header();
+  const _Header({required this.showAboutLink});
+
+  final bool showAboutLink;
 
   @override
   Size get preferredSize => const Size.fromHeight(48);
@@ -66,7 +77,8 @@ class _Header extends StatelessWidget implements PreferredSizeWidget {
         children: [
           const AppLogo(),
           const Spacer(),
-          TextButton(onPressed: () => context.push(Routes.about), child: const Text(_aboutText)),
+          if (showAboutLink)
+            TextButton(onPressed: () => context.push(Routes.about), child: const Text(_aboutText)),
           const _AccountMenu(),
         ],
       ),
