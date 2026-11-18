@@ -1,41 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../app/router.dart';
 
 import '../../app/theme/app_theme.dart';
 import '../../core/domain/currency.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
-import 'disclaimer.dart';
+import 'app_footer.dart';
+
+const _goalText = 'Goal';
+const _plannerText = 'Planner';
+const _profileAndPasswordText = 'Profile and password';
+const _logOutText = 'Log out';
+const _accountMenuText = 'Account menu';
 
 /// Page frame from the design: black header with the account menu, centred
-/// content up to 1120 px, and the market-risk disclaimer in the footer.
+/// content up to 1120 px, and the footer pinned to the bottom of short pages.
 class AppShell extends StatelessWidget {
-  const AppShell({super.key, required this.child, this.extendedDisclaimer = false});
+  const AppShell({super.key, required this.child, this.extendedDisclaimer = false, this.bottomBar});
 
   final Widget child;
   final bool extendedDisclaimer;
+
+  /// Pinned under the scrolling content, e.g. the plan preview on phones.
+  final Widget? bottomBar;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const _Header(),
+      bottomNavigationBar: bottomBar,
       body: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < Breakpoints.compact;
-          return SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: compact ? 24 : 40),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: Breakpoints.contentMaxWidth),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    child,
-                    const SizedBox(height: 32),
-                    Disclaimer(extended: extendedDisclaimer),
-                  ],
-                ),
-              ),
-            ),
+          return FooterScrollView(
+            padding: .fromLTRB(16, compact ? 24 : 40, 16, 32),
+            extendedDisclaimer: extendedDisclaimer,
+            child: child,
           );
         },
       ),
@@ -57,7 +59,7 @@ class _Header extends StatelessWidget implements PreferredSizeWidget {
         color: AppColors.header,
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
-      padding: const EdgeInsets.only(left: 16),
+      padding: const .only(left: 16),
       child: const Row(children: [AppLogo(), Spacer(), _AccountMenu()]),
     );
   }
@@ -70,11 +72,11 @@ class AppLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Text.rich(
       TextSpan(
-        text: 'Goal',
+        text: _goalText,
         children: [
           TextSpan(
-            text: 'Planner',
-            style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.gold),
+            text: _plannerText,
+            style: TextStyle(fontWeight: .w600, color: AppColors.gold),
           ),
         ],
       ),
@@ -99,11 +101,11 @@ class _AccountMenu extends StatelessWidget {
       ),
       menuChildren: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          padding: const .fromLTRB(16, 12, 16, 8),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: .start,
             children: [
-              Text(user.fullName, style: const TextStyle(fontWeight: FontWeight.w600)),
+              Text(user.fullName, style: const TextStyle(fontWeight: .w600)),
               Text(user.email, style: const TextStyle(color: AppColors.text2, fontSize: 12)),
             ],
           ),
@@ -122,19 +124,24 @@ class _AccountMenu extends StatelessWidget {
           child: Text('Default currency for new goals: ${user.defaultCurrency.code}'),
         ),
         MenuItemButton(
+          leadingIcon: const Icon(Icons.person_outline, size: 18),
+          onPressed: () => context.push(Routes.profile),
+          child: const Text(_profileAndPasswordText),
+        ),
+        MenuItemButton(
           leadingIcon: const Icon(Icons.logout, size: 18),
           onPressed: () => context.read<AuthBloc>().add(const AuthLogoutRequested()),
-          child: const Text('Log out'),
+          child: const Text(_logOutText),
         ),
       ],
       builder: (context, controller, _) => InkWell(
         onTap: () => controller.isOpen ? controller.close() : controller.open(),
         child: Semantics(
           button: true,
-          label: 'Account menu',
+          label: _accountMenuText,
           child: Container(
             height: 48,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: const .symmetric(horizontal: 12),
             child: Row(
               children: [
                 CircleAvatar(
@@ -142,11 +149,7 @@ class _AccountMenu extends StatelessWidget {
                   backgroundColor: AppColors.goldTint,
                   child: Text(
                     user.initials,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.gold,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: const TextStyle(fontSize: 11, color: AppColors.gold, fontWeight: .w600),
                   ),
                 ),
                 const SizedBox(width: 8),

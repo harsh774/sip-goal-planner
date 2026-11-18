@@ -3,6 +3,11 @@ import 'package:flutter/material.dart';
 import '../../app/theme/app_theme.dart';
 import '../../core/error/failure.dart';
 
+const _stillWorkingText = 'Still working.';
+const _yourConnectionSeemsSlowText =
+    'Your connection seems slow — this can take a few more seconds. No need to refresh.';
+const _tryAgainText = 'Try again';
+
 class LoadingView extends StatelessWidget {
   const LoadingView({super.key, required this.label, this.isSlow = false, this.skeleton});
 
@@ -15,7 +20,7 @@ class LoadingView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: .stretch,
       children: [
         if (isSlow) const SlowConnectionNotice(),
         if (isSlow) const SizedBox(height: 16),
@@ -48,8 +53,8 @@ class SlowConnectionNotice extends StatelessWidget {
       icon: Icons.wifi_tethering_error,
       color: AppColors.gold,
       background: AppColors.goldTint,
-      title: 'Still working.',
-      body: 'Your connection seems slow — this can take a few more seconds. No need to refresh.',
+      title: _stillWorkingText,
+      body: _yourConnectionSeemsSlowText,
     );
   }
 }
@@ -73,7 +78,7 @@ class ErrorView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: [
         NoticeBanner(
           icon: Icons.error_outline,
@@ -86,7 +91,7 @@ class ErrorView extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: onRetry,
           icon: const Icon(Icons.refresh),
-          label: const Text('Try again'),
+          label: const Text(_tryAgainText),
         ),
       ],
     );
@@ -112,13 +117,13 @@ class NoticeBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      padding: const .fromLTRB(16, 12, 16, 12),
       decoration: BoxDecoration(
         color: background,
         border: Border(left: BorderSide(color: color, width: 3)),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: [
           Icon(icon, color: color, size: 20),
           const SizedBox(width: 12),
@@ -128,7 +133,7 @@ class NoticeBanner extends StatelessWidget {
                 children: [
                   TextSpan(
                     text: '$title ',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                    style: const TextStyle(fontWeight: .w600),
                   ),
                   TextSpan(text: body),
                 ],
@@ -149,5 +154,5 @@ class SkeletonBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      Container(height: height, color: AppColors.layer, margin: const EdgeInsets.only(bottom: 16));
+      Container(height: height, color: AppColors.layer, margin: const .only(bottom: 16));
 }

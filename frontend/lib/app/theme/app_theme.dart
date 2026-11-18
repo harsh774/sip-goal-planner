@@ -25,6 +25,10 @@ abstract final class AppColors {
   static const seriesStepUp = Color(0xFFB38C25);
 }
 
+abstract final class AppRadius {
+  static const button = 12.0;
+}
+
 abstract final class Breakpoints {
   static const compact = 640.0;
   static const contentMaxWidth = 1120.0;
@@ -32,11 +36,12 @@ abstract final class Breakpoints {
 
 abstract final class AppTheme {
   static ThemeData dark() {
-    final base = ThemeData(brightness: Brightness.dark, useMaterial3: true);
+    final base = ThemeData(brightness: .dark, useMaterial3: true);
     final text = GoogleFonts.ibmPlexSansTextTheme(
       base.textTheme,
     ).apply(bodyColor: AppColors.text, displayColor: AppColors.text);
     const square = RoundedRectangleBorder();
+    final rounded = RoundedRectangleBorder(borderRadius: .circular(AppRadius.button));
 
     return base.copyWith(
       scaffoldBackgroundColor: AppColors.background,
@@ -55,7 +60,7 @@ abstract final class AppTheme {
         filled: true,
         fillColor: AppColors.field,
         isDense: true,
-        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding: .symmetric(horizontal: 16, vertical: 12),
         border: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.borderStrong)),
         enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.borderStrong)),
         focusedBorder: OutlineInputBorder(
@@ -71,25 +76,28 @@ abstract final class AppTheme {
           borderSide: BorderSide(color: AppColors.danger, width: 2),
         ),
         labelStyle: TextStyle(color: AppColors.text2, fontSize: 13),
-        floatingLabelBehavior: FloatingLabelBehavior.always,
+        floatingLabelBehavior: .always,
         helperStyle: TextStyle(color: AppColors.text2, fontSize: 12),
         errorStyle: TextStyle(color: AppColors.danger, fontSize: 12),
         errorMaxLines: 3,
+        helperMaxLines: 2,
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.gold,
           foregroundColor: AppColors.onGold,
           minimumSize: const Size(64, 48),
-          shape: square,
-          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          shape: rounded,
+          elevation: 2,
+          shadowColor: AppColors.gold.withValues(alpha: 0.4),
+          textStyle: const TextStyle(fontSize: 15, fontWeight: .w600),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.text,
           minimumSize: const Size(64, 48),
-          shape: square,
+          shape: rounded,
           side: const BorderSide(color: AppColors.borderStrong),
         ),
       ),
@@ -124,7 +132,7 @@ abstract final class AppTheme {
       snackBarTheme: const SnackBarThemeData(
         backgroundColor: AppColors.layer2,
         contentTextStyle: TextStyle(color: AppColors.text),
-        behavior: SnackBarBehavior.floating,
+        behavior: .floating,
       ),
     );
   }
