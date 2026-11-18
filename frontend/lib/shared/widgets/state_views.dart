@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../../app/theme/app_theme.dart';
 import '../../core/error/failure.dart';
+import 'loading_visuals.dart';
 
 const _stillWorkingText = 'Still working.';
 const _yourConnectionSeemsSlowText =
     'Your connection seems slow — this can take a few more seconds. No need to refresh.';
 const _tryAgainText = 'Try again';
 
+/// Loading state: a drifting money matrix behind placeholders shaped like the
+/// content, with a rotating planning tip.
 class LoadingView extends StatelessWidget {
   const LoadingView({super.key, required this.label, this.isSlow = false, this.skeleton});
 
@@ -19,26 +22,33 @@ class LoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: .stretch,
+    return Stack(
       children: [
-        if (isSlow) const SlowConnectionNotice(),
-        if (isSlow) const SizedBox(height: 16),
-        Semantics(
-          liveRegion: true,
-          label: label,
-          child: Row(
-            children: [
-              const SizedBox.square(
-                dimension: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
+        const Positioned.fill(child: MoneyMatrix()),
+        Column(
+          crossAxisAlignment: .stretch,
+          children: [
+            if (isSlow) const SlowConnectionNotice(),
+            if (isSlow) const SizedBox(height: 16),
+            Semantics(
+              liveRegion: true,
+              label: label,
+              child: Row(
+                children: [
+                  const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(label, style: const TextStyle(color: AppColors.text2)),
+                ],
               ),
-              const SizedBox(width: 12),
-              Text(label, style: const TextStyle(color: AppColors.text2)),
-            ],
-          ),
+            ),
+            const SizedBox(height: 12),
+            const RotatingTip(),
+            if (skeleton case final s?) ...[const SizedBox(height: 24), s],
+          ],
         ),
-        if (skeleton != null) ...[const SizedBox(height: 24), skeleton!],
       ],
     );
   }
@@ -153,6 +163,8 @@ class SkeletonBox extends StatelessWidget {
   final double height;
 
   @override
-  Widget build(BuildContext context) =>
-      Container(height: height, color: AppColors.layer, margin: const .only(bottom: 16));
+  Widget build(BuildContext context) => Padding(
+    padding: const .only(bottom: 16),
+    child: PanelSkeleton(height: height),
+  );
 }
