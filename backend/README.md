@@ -1,0 +1,133 @@
+# SIP Goal Planner — API
+
+FastAPI + PostgreSQL service that stores users and their savings goals, keeps a history of every goal change, and serves a SIP projection endpoint.
+
+## Run it
+
+Needs Docker and Python 3. From the repository root:
+
+```bash
+cp backend/.env.example backend/.env
+python3 backend/scripts/generate_secrets.py >> backend/.env
+docker compose up --build
+```
+
+- Swagger UI: http://localhost:8000/docs
+- Health check: http://localhost:8000/health
+
+The API container runs `alembic upgrade head` before starting. PostgreSQL is exposed on **port 5433**, so it doesn't clash with a local PostgreSQL on 5432.
+
+**Try it in Swagger:**
+1. `POST /api/v1/auth/register`.
+2. Click **Authorize** and log in with your email as `username`.
+3. `POST /api/v1/goals`.
+4. `GET /api/v1/goals/{id}/projection`.
+
+## Environment variables
+
+| Variable | Required | Default | Notes |
+|---|---|---|---|
+| `JWT_SECRET` | yes | — | At least 32 bytes. |
+| `DATA_ENCRYPTION_KEY` | yes | — | 32 random bytes, base64. Encrypts personal data at rest. Losing it makes that data unreadable. |
+| `EMAIL_HASH_KEY` | yes | — | 32 random bytes, base64. Keys the email lookup hash. Changing it breaks login for existing users. |
+| `DATABASE_URL` | no | `postgresql+psycopg://sip:sip@localhost:5433/sip` | Overridden inside docker compose. |
+| `JWT_EXPIRE_MINUTES` | no | `60` | |
+| `CORS_ORIGINS` | no | `http://localhost:3000` | Comma-separated browser origins. |
+
+`scripts/generate_secrets.py` prints fresh values for the three secrets. The API refuses to start if any of them is missing or malformed.
+
+## Tests
+
+Tests run against a real PostgreSQL database, `sip_test`, which docker compose creates on first start. The schema is built by the Alembic migration itself.
+
+```bash
+docker compose up -d db          # from the repository root
+cd backend
+uv sync
+uv run pytest                    # whole suite
+uv run pytest tests/test_projection.py::test_shared_vectors   # one test
+uv run ruff check . && uv run ruff format --check .
+```
+
+`TEST_DATABASE_URL` overrides the test database location.
+
+**What's covered (62 tests):**
+- **Projection maths:**
+  - shared vectors in `../shared/projection_vectors.json`, also run by the Flutter client
+  - the worked example, zero return and 0% step-up
+  - goals under a year and corpus already above target
+  - the loop formula matching the closed form, and the plan reaching the target
+- **Money conversion:** exact string ↔ integer round-trips; rejecting floats and more than 2 decimal places.
+- **Auth:** the full flow, case-insensitive duplicate email, weak passwords, bad tokens.
+- **Goals:**
+  - ownership: another user's goal returns 404 on every route
+  - field-level validation codes, JPY precision, currency lock
+  - personal data encrypted at rest (checked with raw SQL)
+  - history entries, soft delete, UUIDv7 ordering, the projection endpoint
+
+## Structure
+
+```
+app/
+  api/            routes (thin) + dependencies (auth, services)
+  services/       business rules: auth, goals + history, projection engine (pure)
+  repositories/   database access; every goal query is scoped to the user and skips deleted rows
+  schemas/        request/response models, validated field types, money ↔ integer conversion
+  models/         SQLAlchemy tables and enums
+  db/             engine/session, encrypted column types
+  core/           settings, crypto, JWT/bcrypt, error handlers
+alembic/          migrations
+tests/
+```
+
+A request flows `route → service → repository → model`. Routes hold no logic, and services never touch HTTP.
+
+## API
+
+All routes are under `/api/v1`. Everything except register and login needs `Authorization: Bearer <token>`.
+
+| Method | Path | Notes |
+|---|---|---|
+| POST | `/auth/register` | 201; 409 `email_taken` |
+| POST | `/auth/login` | OAuth2 password form; `username` = email |
+| GET / PATCH | `/auth/me` | PATCH: `default_currency`, `display_name` |
+| GET / POST | `/goals` | the user's goals, newest first |
+| GET / PATCH / DELETE | `/goals/{id}` | DELETE is a soft delete; another user's goal → 404 |
+| GET | `/goals/{id}/history` | every create, update and delete, oldest first |
+| GET | `/goals/{id}/projection` | level and step-up SIP, today's value, yearly table; `?as_of=YYYY-MM-DD` |
+
+**Errors:**
+- Validation failures return `422 {"detail": [{"field", "code", "message"}]}`. The `code` values are stable, so the client can rely on them.
+- Other errors return `{"detail": "..."}`.
+
+## Data conventions
+
+- **Money and percentages:** strings in JSON (`"2500000.50"`, `"12.5"`). They're parsed with `Decimal` and stored as `bigint`, scaled by 100:
+  - money in hundredths of a unit
+  - rates in basis points
+  - more than 2 decimal places is rejected, not rounded (for JPY, no decimals at all)
+- **Currency:** each goal keeps the currency it was created in; it can't be changed later. New goals default to the user's `default_currency`.
+- **Ids:** UUIDv7, generated in the app. They're time-ordered, so sorting by id sorts by creation time.
+- **Encryption:** email, display name, goal name and history entries are encrypted with AES-256-GCM. Login finds users by an HMAC-SHA256 hash of the email.
+- **History:** goal changes are written to `goal_logs` in the same transaction as the change. A `created` or `deleted` entry is a full snapshot; an `updated` entry holds only the fields that changed.
+
+## Projection maths
+
+The full derivation is in `../docs/LLD.md` §1. In short:
+
+- **Monthly rate:** `i = (1 + R)^(1/12) − 1`, so 12% a year compounds to exactly 12% a year.
+- **Payment timing:** each SIP is paid at the start of its month.
+- **Step-up:** applied once a year.
+- **Required first SIP:** `P0 = gap / Σ (1+s)^⌊m/12⌋ (1+i)^(n−m)`.
+  - The same formula handles zero return, 0% step-up and goals under a year.
+  - It's rounded **up** to a whole unit, so the plan still reaches the target.
+- **Today's money:** `target / (1 + inflation)^(months/12)`.
+
+The Flutter client runs the same engine in Dart and does every calculation the app shows. This endpoint exists because the brief requires one, and both versions are tested against the same shared vectors.
+
+## Assumptions
+
+- "Today" is the server's local date. `?as_of=` gives repeatable results.
+- A goal must be at least 1 month away, and at most 100 years.
+- Limits: return 0–30%, yearly step-up 0–25%, inflation 0–12%, matching the design's sliders.
+- Returns are illustrative assumptions, not guarantees. Mutual fund investments are subject to market risks.
