@@ -103,7 +103,7 @@ class _AccountMenu extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(user.displayName, style: const TextStyle(fontWeight: FontWeight.w600)),
+              Text(user.fullName, style: const TextStyle(fontWeight: FontWeight.w600)),
               Text(user.email, style: const TextStyle(color: AppColors.text2, fontSize: 12)),
             ],
           ),
@@ -153,7 +153,7 @@ class _AccountMenu extends StatelessWidget {
                 LayoutBuilder(
                   builder: (context, _) => MediaQuery.sizeOf(context).width < Breakpoints.compact
                       ? const SizedBox.shrink()
-                      : Text(user.displayName, style: const TextStyle(fontSize: 14)),
+                      : Text(user.firstName, style: const TextStyle(fontSize: 14)),
                 ),
                 const Icon(Icons.expand_more, size: 18, color: AppColors.text2),
               ],

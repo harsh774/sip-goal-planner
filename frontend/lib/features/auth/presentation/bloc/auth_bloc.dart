@@ -9,6 +9,7 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/error/result.dart';
 import '../../../../core/network/session_events.dart';
 import '../../../../core/usecase/usecase.dart';
+import '../../domain/entities/new_account.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/usecases/auth_usecases.dart';
 
@@ -58,7 +59,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       _submit(emit, () => _login(Credentials(event.email, event.password)));
 
   Future<void> _onRegister(AuthRegisterRequested event, Emitter<AuthState> emit) =>
-      _submit(emit, () => _register(Credentials(event.email, event.password)));
+      _submit(emit, () => _register(event.account));
 
   Future<void> _submit(Emitter<AuthState> emit, Future<Result<User>> Function() action) async {
     emit(state.copyWith(submitting: true, clearFailure: true));

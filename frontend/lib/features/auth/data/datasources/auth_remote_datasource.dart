@@ -1,6 +1,7 @@
 import '../../../../core/domain/currency.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/endpoints.dart';
+import '../../domain/entities/new_account.dart';
 import '../../domain/entities/user.dart';
 import '../models/user_model.dart';
 
@@ -9,8 +10,16 @@ class AuthRemoteDataSource {
 
   final ApiClient _api;
 
-  Future<User> register(String email, String password) async {
-    final json = await _api.post(Endpoints.register, body: {'email': email, 'password': password});
+  Future<User> register(NewAccount a) async {
+    final json = await _api.post(
+      Endpoints.register,
+      body: {
+        'first_name': a.firstName,
+        'last_name': a.lastName,
+        'email': a.email,
+        'password': a.password,
+      },
+    );
     return UserModel.fromJson(json! as Map<String, dynamic>);
   }
 

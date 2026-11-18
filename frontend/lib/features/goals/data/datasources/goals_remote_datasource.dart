@@ -1,6 +1,9 @@
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/endpoints.dart';
+import '../../../../core/domain/currency.dart';
 import '../../domain/entities/goal.dart';
+import '../../domain/entities/goal_query.dart';
+import '../models/goal_query_model.dart';
 import '../models/goal_model.dart';
 
 class GoalsRemoteDataSource {
@@ -8,11 +11,17 @@ class GoalsRemoteDataSource {
 
   final ApiClient _api;
 
-  Future<List<Goal>> list() async {
-    final json = await _api.get(Endpoints.goals);
-    return [
-      for (final item in json! as List<dynamic>) GoalModel.fromJson(item as Map<String, dynamic>),
-    ];
+  Future<Paged<Goal>> list(GoalQuery query) async {
+    final json = await _api.get(Endpoints.goals, query: GoalQueryModel.toQuery(query));
+    return GoalQueryModel.pageFromJson(json! as Map<String, dynamic>);
+  }
+
+  Future<GoalsSummary> summary(GoalFilters filters, Currency inCurrency) async {
+    final json = await _api.get(
+      Endpoints.goalsSummary,
+      query: {...GoalQueryModel.filtersToQuery(filters), 'in_currency': inCurrency.code},
+    );
+    return GoalQueryModel.summaryFromJson(json! as Map<String, dynamic>);
   }
 
   Future<Goal> get(String id) async =>

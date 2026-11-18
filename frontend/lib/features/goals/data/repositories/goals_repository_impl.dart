@@ -1,6 +1,8 @@
 import '../../../../core/error/result.dart';
 import '../../../../core/network/guard.dart';
+import '../../../../core/domain/currency.dart';
 import '../../domain/entities/goal.dart';
+import '../../domain/entities/goal_query.dart';
 import '../../domain/repositories/goals_repository.dart';
 import '../datasources/goals_remote_datasource.dart';
 
@@ -10,7 +12,11 @@ class GoalsRepositoryImpl implements GoalsRepository {
   final GoalsRemoteDataSource _remote;
 
   @override
-  Future<Result<List<Goal>>> list() => guard(_remote.list);
+  Future<Result<Paged<Goal>>> list(GoalQuery query) => guard(() => _remote.list(query));
+
+  @override
+  Future<Result<GoalsSummary>> summary(GoalFilters filters, Currency inCurrency) =>
+      guard(() => _remote.summary(filters, inCurrency));
 
   @override
   Future<Result<Goal>> get(String id) => guard(() => _remote.get(id));

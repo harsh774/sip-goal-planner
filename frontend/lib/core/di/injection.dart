@@ -11,9 +11,9 @@ import '../../features/goals/data/repositories/goals_repository_impl.dart';
 import '../../features/goals/domain/repositories/goals_repository.dart';
 import '../../features/goals/domain/usecases/goal_usecases.dart';
 import '../../features/goals/presentation/bloc/goal_form_bloc.dart';
-import '../../features/goals/presentation/bloc/goal_list_bloc.dart';
-import '../../features/projection/domain/usecases/calculate_goal_totals.dart';
+import '../../features/goals/presentation/bloc/dashboard_bloc.dart';
 import '../../features/projection/domain/usecases/calculate_projection.dart';
+import '../../features/projection/domain/usecases/plan_goals.dart';
 import '../../features/projection/presentation/bloc/plan_preview_cubit.dart';
 import '../../features/projection/presentation/bloc/projection_bloc.dart';
 import '../config/app_config.dart';
@@ -46,11 +46,12 @@ Future<void> configureDependencies() async {
     ..registerLazySingleton(() => Logout(sl()))
     ..registerLazySingleton(() => UpdateDefaultCurrency(sl()))
     ..registerLazySingleton(() => GetGoals(sl()))
+    ..registerLazySingleton(() => GetGoalsSummary(sl()))
     ..registerLazySingleton(() => GetGoal(sl()))
     ..registerLazySingleton(() => SaveGoal(sl()))
     ..registerLazySingleton(() => DeleteGoal(sl()))
     ..registerLazySingleton(CalculateProjection.new)
-    ..registerLazySingleton(() => CalculateGoalTotals(sl()))
+    ..registerLazySingleton(() => PlanGoals(sl()))
     // Presentation: one AuthBloc for the app, fresh blocs per screen.
     ..registerLazySingleton(
       () => AuthBloc(
@@ -62,7 +63,7 @@ Future<void> configureDependencies() async {
         session: sl(),
       ),
     )
-    ..registerFactory(() => GoalListBloc(getGoals: sl(), calculateTotals: sl()))
+    ..registerFactory(() => DashboardBloc(getGoals: sl(), getSummary: sl(), planGoals: sl()))
     ..registerFactory(() => GoalFormBloc(getGoal: sl(), saveGoal: sl()))
     ..registerFactory(() => PlanPreviewCubit(sl()))
     ..registerFactory(() => ProjectionBloc(getGoal: sl(), deleteGoal: sl(), calculate: sl()));

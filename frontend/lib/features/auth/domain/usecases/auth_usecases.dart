@@ -1,6 +1,7 @@
 import '../../../../core/domain/currency.dart';
 import '../../../../core/error/result.dart';
 import '../../../../core/usecase/usecase.dart';
+import '../entities/new_account.dart';
 import '../entities/user.dart';
 import '../repositories/auth_repository.dart';
 
@@ -29,13 +30,13 @@ class Login implements UseCase<User, Credentials> {
   Future<Result<User>> call(Credentials c) => _repo.login(email: c.email, password: c.password);
 }
 
-class Register implements UseCase<User, Credentials> {
+class Register implements UseCase<User, NewAccount> {
   Register(this._repo);
 
   final AuthRepository _repo;
 
   @override
-  Future<Result<User>> call(Credentials c) => _repo.register(email: c.email, password: c.password);
+  Future<Result<User>> call(NewAccount account) => _repo.register(account);
 }
 
 class Logout implements UseCase<void, NoParams> {

@@ -1,5 +1,6 @@
 import '../../../../core/domain/currency.dart';
 import '../../../../core/error/result.dart';
+import '../entities/new_account.dart';
 import '../entities/user.dart';
 
 abstract interface class AuthRepository {
@@ -8,7 +9,7 @@ abstract interface class AuthRepository {
 
   Future<Result<User>> login({required String email, required String password});
 
-  Future<Result<User>> register({required String email, required String password});
+  Future<Result<User>> register(NewAccount account);
 
   Future<void> logout();
 

@@ -3,6 +3,7 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/error/result.dart';
 import '../../../../core/network/guard.dart';
 import '../../../../core/storage/token_storage.dart';
+import '../../domain/entities/new_account.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_datasource.dart';
@@ -32,10 +33,10 @@ class AuthRepositoryImpl implements AuthRepository {
   });
 
   @override
-  Future<Result<User>> register({required String email, required String password}) async {
-    final registered = await guard(() => _remote.register(email, password));
+  Future<Result<User>> register(NewAccount account) async {
+    final registered = await guard(() => _remote.register(account));
     if (registered case Err(:final failure)) return Err(failure);
-    return login(email: email, password: password);
+    return login(email: account.email, password: account.password);
   }
 
   @override

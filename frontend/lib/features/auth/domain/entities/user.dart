@@ -1,3 +1,4 @@
+import 'package:characters/characters.dart';
 import 'package:equatable/equatable.dart';
 
 import '../../../../core/domain/currency.dart';
@@ -6,20 +7,24 @@ class User extends Equatable {
   const User({
     required this.id,
     required this.email,
-    required this.displayName,
+    required this.firstName,
+    required this.lastName,
     required this.defaultCurrency,
   });
 
   final String id;
   final String email;
-  final String displayName;
+  final String firstName;
+  final String lastName;
   final Currency defaultCurrency;
 
-  String get initials {
-    final parts = displayName.trim().split(RegExp(r'[\s._-]+')).where((p) => p.isNotEmpty);
-    return parts.take(2).map((p) => p[0].toUpperCase()).join();
-  }
+  String get fullName => '$firstName $lastName'.trim();
+
+  String get initials => [
+    firstName,
+    lastName,
+  ].where((n) => n.isNotEmpty).map((n) => n.characters.first.toUpperCase()).join();
 
   @override
-  List<Object?> get props => [id, email, displayName, defaultCurrency];
+  List<Object?> get props => [id, email, firstName, lastName, defaultCurrency];
 }

@@ -22,13 +22,12 @@ final class AuthLoginRequested extends AuthEvent {
 }
 
 final class AuthRegisterRequested extends AuthEvent {
-  const AuthRegisterRequested(this.email, this.password);
+  const AuthRegisterRequested(this.account);
 
-  final String email;
-  final String password;
+  final NewAccount account;
 
   @override
-  List<Object?> get props => [email, password];
+  List<Object?> get props => [account];
 }
 
 final class AuthLogoutRequested extends AuthEvent {

@@ -7,7 +7,7 @@ import '../features/auth/presentation/bloc/auth_bloc.dart';
 import '../features/auth/presentation/pages/auth_page.dart';
 import '../features/goals/domain/entities/goal_type.dart';
 import '../features/goals/presentation/pages/goal_form_page.dart';
-import '../features/goals/presentation/pages/goal_list_page.dart';
+import '../features/goals/presentation/pages/dashboard_page.dart';
 import '../features/projection/presentation/pages/goal_plan_page.dart';
 import '../shared/widgets/splash_page.dart';
 
@@ -55,7 +55,7 @@ GoRouter buildRouter(AuthBloc auth) {
       ),
       GoRoute(
         path: Routes.goals,
-        builder: (_, _) => const GoalListPage(),
+        builder: (_, _) => const DashboardPage(),
         routes: [
           GoRoute(
             path: 'new',

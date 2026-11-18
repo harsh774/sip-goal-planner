@@ -3,6 +3,7 @@ abstract final class Endpoints {
   static const login = '/auth/login';
   static const me = '/auth/me';
   static const goals = '/goals';
+  static const goalsSummary = '/goals/summary';
 
   static String goal(String id) => '/goals/$id';
 }

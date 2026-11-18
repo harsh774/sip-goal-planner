@@ -8,6 +8,7 @@ import '../../../../core/error/failure.dart';
 import '../../../../shared/widgets/app_shell.dart';
 import '../../../../shared/widgets/disclaimer.dart';
 import '../../../../shared/widgets/state_views.dart';
+import '../../domain/entities/new_account.dart';
 import '../bloc/auth_bloc.dart';
 
 enum AuthMode { login, register }
@@ -22,6 +23,8 @@ class AuthPage extends StatefulWidget {
 }
 
 class _AuthPageState extends State<AuthPage> {
+  final _firstName = TextEditingController();
+  final _lastName = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
@@ -38,6 +41,8 @@ class _AuthPageState extends State<AuthPage> {
 
   @override
   void dispose() {
+    _firstName.dispose();
+    _lastName.dispose();
     _email.dispose();
     _password.dispose();
     _confirm.dispose();
@@ -54,7 +59,14 @@ class _AuthPageState extends State<AuthPage> {
     final email = _email.text.trim();
     bloc.add(
       _isRegister
-          ? AuthRegisterRequested(email, _password.text)
+          ? AuthRegisterRequested(
+              NewAccount(
+                firstName: _firstName.text.trim(),
+                lastName: _lastName.text.trim(),
+                email: email,
+                password: _password.text,
+              ),
+            )
           : AuthLoginRequested(email, _password.text),
     );
   }
@@ -147,6 +159,39 @@ class _AuthPageState extends State<AuthPage> {
                 background: AppColors.dangerBg,
                 title: _isRegister ? 'Couldn’t create your account.' : 'Couldn’t log you in.',
                 body: generalError,
+              ),
+            ],
+            if (_isRegister) ...[
+              const SizedBox(height: 24),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _firstName,
+                      autofillHints: const [AutofillHints.givenName],
+                      textCapitalization: TextCapitalization.words,
+                      textInputAction: TextInputAction.next,
+                      decoration: InputDecoration(
+                        labelText: 'First name',
+                        errorText: fieldErrors['first_name']?.message,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextField(
+                      controller: _lastName,
+                      autofillHints: const [AutofillHints.familyName],
+                      textCapitalization: TextCapitalization.words,
+                      textInputAction: TextInputAction.next,
+                      decoration: InputDecoration(
+                        labelText: 'Last name',
+                        errorText: fieldErrors['last_name']?.message,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
             const SizedBox(height: 24),
