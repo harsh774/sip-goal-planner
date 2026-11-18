@@ -39,4 +39,4 @@ How AI tools were used on this project. Kept up to date as the work goes on.
 - `ruff check`, `ruff format --check` and the full pytest suite pass before each commit.
 - The Dart engine runs the **same** `shared/projection_vectors.json` as pytest, so the two engines can't silently drift apart.
 - `dart analyze` (with strict casts and raw types) and `flutter test` pass before each frontend commit. `flutter build web` compiles cleanly.
-- The exchange rates in `fx_rates.dart` were fetched from the ECB feed (frankfurter.dev) on the day; they weren't recalled from memory.
+- The exchange rates in `backend/app/services/fx.py` were fetched from the ECB feed (frankfurter.dev) on the day; they weren't recalled from memory.
