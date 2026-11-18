@@ -28,7 +28,10 @@ final class UnauthorizedApiException extends ApiException {
   final String? message;
 
   @override
-  Failure toFailure() => message == null ? const AuthFailure() : AuthFailure(message!);
+  Failure toFailure() => switch (message) {
+    final m? => AuthFailure(m),
+    null => const AuthFailure(),
+  };
 }
 
 final class NotFoundApiException extends ApiException {
@@ -37,7 +40,10 @@ final class NotFoundApiException extends ApiException {
   final String? message;
 
   @override
-  Failure toFailure() => message == null ? const NotFoundFailure() : NotFoundFailure(message!);
+  Failure toFailure() => switch (message) {
+    final m? => NotFoundFailure(m),
+    null => const NotFoundFailure(),
+  };
 }
 
 /// 409 and 422 responses with `{"detail": [{"field", "code", "message"}]}`.
@@ -54,6 +60,16 @@ final class ServerApiException extends ApiException {
   const ServerApiException(this.statusCode);
 
   final int? statusCode;
+
+  @override
+  Failure toFailure() => const ServerFailure();
+}
+
+/// The server answered, but not with the shape the app expects.
+final class MalformedResponseApiException extends ApiException {
+  const MalformedResponseApiException([this.cause]);
+
+  final Object? cause;
 
   @override
   Failure toFailure() => const ServerFailure();
