@@ -6,7 +6,7 @@ import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/currency.dart';
 import '../../../../core/format/money_formatter.dart';
 import '../../../projection/domain/engine/projection_calculator.dart';
-import 'goal_card.dart' show CardGrid;
+import '../../../goals/presentation/widgets/goal_card.dart' show CardGrid;
 
 const _whyASipPlanText = 'Why a SIP plan matters';
 const _smallRegularAmountsAddText =

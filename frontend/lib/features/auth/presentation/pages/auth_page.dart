@@ -13,6 +13,7 @@ import '../../../../shared/widgets/state_views.dart';
 import '../../domain/entities/new_account.dart';
 import '../bloc/auth_bloc.dart';
 
+const _aboutText = 'About';
 const _firstNameText = 'First name';
 const _lastNameOptionalText = 'Last name (optional)';
 const _emailText = 'Email';
@@ -112,8 +113,17 @@ class _AuthPageState extends State<AuthPage> {
         child: Container(
           color: AppColors.header,
           alignment: .centerLeft,
-          padding: const .symmetric(horizontal: 16),
-          child: const AppLogo(),
+          padding: const .only(left: 16, right: 8),
+          child: Row(
+            children: [
+              const AppLogo(),
+              const Spacer(),
+              TextButton(
+                onPressed: () => context.push(Routes.about),
+                child: const Text(_aboutText),
+              ),
+            ],
+          ),
         ),
       ),
       body: Stack(

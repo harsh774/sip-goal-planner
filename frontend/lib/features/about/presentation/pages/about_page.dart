@@ -6,7 +6,7 @@ import '../../../../app/router.dart';
 import '../../../../core/domain/currency.dart';
 import '../../../../shared/widgets/app_shell.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
-import '../../../goals/presentation/widgets/sip_insights.dart';
+import '../widgets/sip_insights.dart';
 import '../widgets/about_goal_planner.dart';
 
 const _backText = 'Back';

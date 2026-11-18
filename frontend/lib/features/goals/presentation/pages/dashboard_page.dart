@@ -16,7 +16,6 @@ import '../widgets/empty_goals.dart';
 import '../widgets/goal_card.dart';
 import '../widgets/goal_filters_bar.dart';
 import '../widgets/pagination_bar.dart';
-import '../widgets/sip_insights.dart';
 import '../widgets/summary_strip.dart';
 
 const _loadingYourGoalsText = 'Loading your goals';
@@ -90,10 +89,6 @@ class _DashboardView extends StatelessWidget {
               onOpen: (id) => _open(context, Routes.goal(id)),
             ),
           },
-          if (state.status == DashboardStatus.ready) ...[
-            const SizedBox(height: 48),
-            SipImpactSection(currency: state.totalCurrency),
-          ],
         ],
       ),
     );
