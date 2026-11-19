@@ -27,15 +27,35 @@ Each goal keeps its own currency (11 supported); the dashboard totals all goals 
 
 ## Quick start
 
-Needs Docker, Python 3 and Flutter 3.38+.
+**Needs:** Docker, Python 3, Flutter 3.38+ (Dart 3.10+), Chrome. For tests or running the API without Docker, also [uv](https://docs.astral.sh/uv/).
 
-```bash
-cp backend/.env.example backend/.env && python3 backend/scripts/generate_secrets.py >> backend/.env
-docker compose up --build                                  # API on :8000 (Swagger at /docs), PostgreSQL on :5433
-cd frontend && flutter run -d chrome --web-port 3000       # in a second terminal; app on :3000
-```
+1. **Configure the API** (once). This creates `backend/.env` with fresh secrets:
+   ```bash
+   cp backend/.env.example backend/.env
+   python3 backend/scripts/generate_secrets.py >> backend/.env
+   ```
+2. **Start PostgreSQL and the API:**
+   ```bash
+   docker compose up --build        # API on http://localhost:8000 (Swagger at /docs), PostgreSQL on localhost:5433
+   ```
+   The API applies the database migrations on start. Check http://localhost:8000/health returns `{"status":"ok"}`.
+3. **Start the web app** in a second terminal:
+   ```bash
+   cd frontend
+   flutter pub get
+   flutter run -d chrome --web-port 3000
+   ```
+   Port 3000 matters: it's the origin the API allows by default (`CORS_ORIGINS`).
+4. **Use it:** create an account on the sign-up page, add a goal, open its plan.
 
-Register in the app, add a goal, and open its plan. Android: `flutter run` on an emulator reaches the local API at `10.0.2.2`; see the frontend README for APK builds.
+**Other ways to run:**
+- **API without Docker** (database still from compose): `docker compose up -d db`, then in `backend/`: `uv sync && uv run alembic upgrade head && uv run uvicorn app.main:app --port 8000`.
+- **Android emulator:** `cd frontend && flutter run`. The emulator reaches the local API at `10.0.2.2`. APK builds: [frontend README](frontend/README.md).
+
+**If something goes wrong:**
+- *Port 5433 or 8000 in use:* stop the other service, or change the port in `docker-compose.yml`.
+- *Tests fail with "database sip_test does not exist":* the test database is created only when the PostgreSQL volume is first made. Create it once: `docker compose exec db psql -U sip -c "CREATE DATABASE sip_test OWNER sip;"`.
+- *`MissingPluginException` in the web app after changing dependencies:* `flutter clean`, then run again.
 
 ## How it fits together
 

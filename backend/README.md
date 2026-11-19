@@ -4,7 +4,7 @@ FastAPI + PostgreSQL service that stores users and their savings goals, keeps a 
 
 ## Run it
 
-Needs Docker and Python 3. From the repository root:
+Needs Docker and Python 3 (plus [uv](https://docs.astral.sh/uv/) for tests and running without Docker). From the repository root:
 
 ```bash
 cp backend/.env.example backend/.env
