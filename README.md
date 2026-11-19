@@ -20,6 +20,7 @@ Each goal keeps its own currency (11 supported); the dashboard totals all goals 
 | [`backend/`](backend/README.md) | FastAPI + PostgreSQL API: auth, goals with history, search and filters, projection endpoint, optional encrypted payloads. |
 | [`frontend/`](frontend/README.md) | Flutter app for web and Android: dashboard, goal form with live preview, results with chart, profile. |
 | `shared/projection_vectors.json` | Test cases both projection engines (Python and Dart) must pass. |
+| [`DESIGN.md`](DESIGN.md) | One page: architecture, the SIP formula, two trade-offs. |
 | [`docs/HLD.md`](docs/HLD.md), [`docs/LLD.md`](docs/LLD.md) | Design: decisions, formulas, schema, endpoints, encryption protocol. |
 | [`AI_USAGE.md`](AI_USAGE.md) | How AI tools were used on this project. |
 | [`CLAUDE.md`](CLAUDE.md) | Guidance for Claude Code working in this repo. |
