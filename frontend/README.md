@@ -27,12 +27,12 @@ The API only accepts browser requests from origins listed in its `CORS_ORIGINS`,
 **Deploy (Cloudflare Pages):** live at https://sip-goal-planner.pages.dev, API on Render.
 
 ```bash
-flutter build web --release --dart-define=API_BASE_URL=https://sip-goal-planner-zx14.onrender.com/api/v1
+flutter build web --release -O4 --no-source-maps --dart-define=API_BASE_URL=https://sip-goal-planner-zx14.onrender.com/api/v1
 npx wrangler login                     # once
 npx wrangler pages deploy build/web --project-name sip-goal-planner --branch main
 ```
 
-Pages serves `index.html` for any unknown path, so deep links and the app's 404 page work. The API's `CORS_ORIGINS` must include `https://sip-goal-planner.pages.dev`.
+`-O4` is the web equivalent of `--obfuscate` (which `flutter build web` doesn't accept): dart2js minifies and renames every identifier, and no source maps are published. String literals, such as UI text and the API URL, stay readable in any web build, so nothing secret belongs in the client. Pages serves `index.html` for any unknown path, so deep links and the app's 404 page work. The API's `CORS_ORIGINS` must include `https://sip-goal-planner.pages.dev`.
 
 After adding a plugin, run `flutter clean` before building for web; a stale cached plugin registrant causes `MissingPluginException` at runtime.
 
