@@ -32,6 +32,18 @@ uv run uvicorn app.main:app --port 8000
 3. `POST /api/v1/goals`.
 4. `GET /api/v1/goals/{id}/projection`.
 
+## Deploy (Render + Railway)
+
+The API runs on Render from `backend/Dockerfile`; the database is PostgreSQL on Railway.
+
+- **Render service:** Root Directory `backend`, runtime Docker, health check `/health`, Auto-Deploy **On Commit** (optional build filter `backend/**`). The container runs `alembic upgrade head`, then listens on Render's `$PORT`.
+- **Environment on Render:**
+  - `DATABASE_URL`: Railway's *public* URL, written `postgresql+psycopg://…?sslmode=require`.
+  - `JWT_SECRET`, `DATA_ENCRYPTION_KEY`, `EMAIL_HASH_KEY`: the **same** values the data was encrypted with; different keys make names and emails unreadable and break login.
+  - `CORS_ORIGINS`: the web app's origin, e.g. `https://sip-goal-planner.pages.dev`.
+- **Remote database:** connections use TCP keepalives and are recycled every 5 minutes, because hosted proxies drop idle connections.
+- **Copying a database:** `pg_dump --no-owner --no-privileges` from the source, piped into `psql` on the target; use a `pg_dump` at least as new as the source server.
+
 ## Environment variables
 
 | Variable | Required | Default | Notes |

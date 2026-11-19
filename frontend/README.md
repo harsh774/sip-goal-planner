@@ -40,10 +40,11 @@ After adding a plugin, run `flutter clean` before building for web; a stale cach
 
 ```bash
 flutter run -d emulator-5554          # the emulator reaches the local API at 10.0.2.2
-flutter build apk --release --dart-define=API_BASE_URL=https://…
+flutter build apk --release --obfuscate --split-debug-info=build/debug-info \
+  --dart-define=API_BASE_URL=https://sip-goal-planner-zx14.onrender.com/api/v1
 ```
 
-The APK lands in `build/app/outputs/flutter-apk/app-release.apk`. Plain HTTP is allowed only to `10.0.2.2` and `localhost` (`android/app/src/main/res/xml/network_security_config.xml`); any other API must use HTTPS. Release builds are signed with the debug key until a real keystore is configured in `android/app/build.gradle.kts`.
+The APK lands in `build/app/outputs/flutter-apk/app-release.apk`. Keep `build/debug-info` to decode obfuscated stack traces (`flutter symbolize`); add `--split-per-abi` for smaller per-CPU APKs. The app version in `pubspec.yaml` is the encryption client id, so a new version must be added to the API's `TRANSPORT_CLIENT_IDS`. Plain HTTP is allowed only to `10.0.2.2` and `localhost` (`android/app/src/main/res/xml/network_security_config.xml`); any other API must use HTTPS. Release builds are signed with the debug key until a real keystore is configured in `android/app/build.gradle.kts`.
 
 **Icons:** the GP mark lives in `assets/branding/`; the favicon, PWA icons and Android launcher icons are generated from `app_icon.png`.
 

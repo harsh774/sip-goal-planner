@@ -9,6 +9,8 @@ Plan what you're saving for. Enter a goal — "₹1 crore in 12 years, ₹20,000
 
 Each goal keeps its own currency (11 supported); the dashboard totals all goals in one currency you pick.
 
+**Live:** web app at https://sip-goal-planner.pages.dev · API at https://sip-goal-planner-zx14.onrender.com ([Swagger](https://sip-goal-planner-zx14.onrender.com/docs)).
+
 *Returns are illustrative assumptions, not guarantees. Mutual fund investments are subject to market risks.*
 
 ## What's in the repo
@@ -46,6 +48,15 @@ Flutter app ──HTTPS, JSON (money as strings), Bearer JWT──▶ FastAPI �
 - **Maths:** effective monthly rate `(1+R)^(1/12) − 1`, SIP paid at the start of each month, step-up once a year. The Python and Dart engines are held identical by the shared vectors.
 - **Money:** never a float in transit or storage — strings in JSON, `bigint` hundredths in the database.
 - **Privacy:** names, emails, goal names and history are AES-256-GCM encrypted at rest; login looks users up by an HMAC of the email.
+
+## Deployment
+
+| Part | Where | How it updates |
+|---|---|---|
+| Web app | Cloudflare Pages (`sip-goal-planner`) | build locally, `wrangler pages deploy` ([frontend README](frontend/README.md)) |
+| API | Render, Docker from `backend/` | auto-deploys on push to `main`; runs migrations on start ([backend README](backend/README.md)) |
+| Database | Railway PostgreSQL | updated by those migrations |
+| Android | APK from `flutter build apk` | manual ([frontend README](frontend/README.md)) |
 
 ## Tests
 
