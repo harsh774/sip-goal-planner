@@ -38,7 +38,7 @@ How AI tools were used on this project. Kept up to date as the work goes on.
 
 ## What I wrote by hand
 
-- **`SafeArea` around the app** (`frontend/lib/app/app.dart`), so content clears the status bar and notch on Android. I noticed the overlap on the device and added the wrapper myself.
+- **`SafeArea` around the app** (`frontend/lib/app/app.dart`), so content clears the status bar and notch on Android.
 - **App version `1.0.0`** in `pubspec.yaml`, which the encryption scheme then used as the client id.
 
 The encryption code is not on this list: I designed the scheme (see above), and the AI implemented it.
