@@ -15,9 +15,13 @@ How AI tools were used on this project. Kept up to date as the work goes on.
 | Design docs | Drafted `docs/HLD.md` and `docs/LLD.md` from the brief and the Claude Design canvas | Stack, the effective monthly rate, maths in the client, a currency per goal, encryption scope, `bigint` storage with string inputs, UUIDv7, soft delete with history, English only, Bloc and clean architecture on the client |
 | Backend scaffolding | FastAPI app, layering (route → service → repository → model), Alembic migration, Docker setup | The layering and the data conventions above |
 | Backend tests | Wrote the pytest suite and the shared projection vectors | Which edge cases had to be covered |
-| Frontend | Flutter web app: clean-architecture layers, Dio `ApiClient` with typed exceptions, Blocs, Dart projection engine, pages following the Claude Design canvas | Bloc + clean architecture, client-side maths with shared vectors, the per-goal currency rule, a fixed FX snapshot for the total, English only |
+| Frontend | Flutter app for web and Android: clean-architecture layers, Dio `ApiClient` with typed exceptions, Blocs, Dart projection engine, pages following the Claude Design canvas | Bloc + clean architecture, client-side maths with shared vectors, the per-goal currency rule, English only |
+| Later features | Dashboard (search with 300 ms debounce, filters, paging, totals), profile and password change, about, offline and 404 pages, loading skeletons, amounts in words, Android build and GP icon | Every feature and its behaviour: what the dashboard shows, that totals ignore filters, debounce timing, the offline wording, default rates (10% return, 2% inflation) |
+| Encrypted payloads | Implemented the protocol on both sides: RSA key pairs per client in `transport_keys`, the ASGI middleware, the Dio interceptor, rotation CLI, tests | **The scheme was my design**: a fresh AES key per request wrapped with the server's RSA public key, keys stored with a version, a public-key endpoint per client id, the app version as client id, and a UI switch to try it |
+| Code quality | Dot shorthands and file-level text constants across the client, no `!` operator, datasource try/catch, pyright to zero errors | These conventions |
+| Deployment | Render and Railway setup, DB copy, Cloudflare Pages deploy, `$PORT` and connection keepalives | Hosts: Render, Railway, Cloudflare Pages |
 | Frontend tests | Engine against the shared vectors, money parsing and formatting, validator, `ApiClient` error mapping, bloc states, widget test | That the engine must run the backend's exact vector file |
-| Docs | READMEs and this file's first draft | Reviewed and edited |
+| Docs | READMEs, `DESIGN.md`, HLD/LLD with Mermaid diagrams, `CLAUDE.md`, this file's first draft | Reviewed and edited |
 
 ## Where the AI was wrong, and how it was caught
 
@@ -27,10 +31,17 @@ How AI tools were used on this project. Kept up to date as the work goes on.
 
 4. **Wrong assumption about Bloc in the tests.** The first `GoalListBloc` tests assumed Bloc drops an `emit` equal to the initial state, so they left out the first `GoalListLoading()`. Four tests failed. Reading the failure output showed that Bloc always emits the first state. The tests were corrected; the bloc was right.
 5. **Name clash with a Flutter widget.** A shared widget was first called `Banner`, which collides with Flutter's own `Banner` in `material.dart`. The analyzer caught it before anything ran, and it was renamed `NoticeBanner`.
+6. **A body on a 204.** With encryption on, the middleware sealed a body onto `204 No Content` responses (delete goal, change password). This broke HTTP framing and desynced keep-alive connections. A separate AI code-review pass caught it and reproduced it on a real uvicorn server; the fix was checked the same way. The same review found that revoking the active key broke the public-key endpoint.
+7. **A footer that wouldn't sit at the bottom.** The footer's `Column` filled the remaining space and drew its content at the top. Screenshots showed it; a widget test reproduced it before the one-line fix (`mainAxisSize: .min`).
+8. **Text fields shrinking on focus.** The theme used an underline border at rest and an outline border on focus, which moved the label and cut 14 px. I reported it; a test that fails on the old theme now guards it.
+9. **A stale build cache.** After adding plugins, the web build still registered only the old ones, so the app failed with `MissingPluginException`. Found by printing the error in the browser; fixed with `flutter clean`.
 
 ## What I wrote by hand
 
-*To fill in: one piece written deliberately without AI, and why.*
+- **`SafeArea` around the app** (`frontend/lib/app/app.dart`), so content clears the status bar and notch on Android. I noticed the overlap on the device and added the wrapper myself.
+- **App version `1.0.0`** in `pubspec.yaml`, which the encryption scheme then used as the client id.
+
+The encryption code is not on this list: I designed the scheme (see above), and the AI implemented it.
 
 ## How the output was checked
 
@@ -38,5 +49,7 @@ How AI tools were used on this project. Kept up to date as the work goes on.
 - The API was exercised end to end with `curl` before tests were written. Raw SQL confirmed that personal data is stored as ciphertext and amounts as scaled integers.
 - `ruff check`, `ruff format --check` and the full pytest suite pass before each commit.
 - The Dart engine runs the **same** `shared/projection_vectors.json` as pytest, so the two engines can't silently drift apart.
-- `dart analyze` (with strict casts and raw types) and `flutter test` pass before each frontend commit. `flutter build web` compiles cleanly.
+- `flutter analyze` (with strict casts and raw types) and `flutter test` pass before each frontend commit; pyright reports zero errors on the backend.
+- UI changes were checked with headless-browser screenshots of the running app, and the encrypted traffic in a real browser (ciphertext on the wire, key rotation mid-session).
+- A separate code-review agent reviewed the encryption, search and offline work; its Critical and Important findings were fixed and re-verified.
 - The exchange rates in `backend/app/services/fx.py` were fetched from the ECB feed (frankfurter.dev) on the day; they weren't recalled from memory.
