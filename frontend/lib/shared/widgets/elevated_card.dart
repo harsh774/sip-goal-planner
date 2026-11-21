@@ -11,6 +11,7 @@ class ElevatedCard extends StatefulWidget {
     this.onTap,
     this.padding = const .all(24),
     this.highlight = false,
+    this.success = false,
   });
 
   final Widget child;
@@ -19,6 +20,9 @@ class ElevatedCard extends StatefulWidget {
 
   /// A gold-tinted surface for headline cards.
   final bool highlight;
+
+  /// A green-tinted surface, e.g. for a completed goal. Takes precedence over [highlight].
+  final bool success;
 
   @override
   State<ElevatedCard> createState() => _ElevatedCardState();
@@ -44,12 +48,16 @@ class _ElevatedCardState extends State<ElevatedCard> {
           gradient: LinearGradient(
             begin: .topLeft,
             end: .bottomRight,
-            colors: widget.highlight
+            colors: widget.success
+                ? const [AppColors.successBg, AppColors.layer]
+                : widget.highlight
                 ? const [AppColors.goldTint, AppColors.layer]
                 : const [AppColors.layer2, AppColors.layer],
           ),
           border: Border.all(
-            color: lifted || widget.highlight
+            color: widget.success
+                ? AppColors.success.withValues(alpha: lifted ? 0.8 : 0.45)
+                : lifted || widget.highlight
                 ? AppColors.gold.withValues(alpha: lifted ? 0.7 : 0.35)
                 : AppColors.border,
           ),

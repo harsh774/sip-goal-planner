@@ -17,7 +17,14 @@ from uuid6 import uuid7
 
 from app.db.base import Base
 from app.db.types import EncryptedText
-from app.models.enums import Currency, GoalType, currency_enum, goal_type_enum
+from app.models.enums import (
+    Currency,
+    GoalAction,
+    GoalType,
+    currency_enum,
+    goal_action_enum,
+    goal_type_enum,
+)
 
 
 class Goal(Base):
@@ -68,3 +75,11 @@ class Goal(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    # The goal's latest history action, set with every goal_logs row in the same transaction.
+    action: Mapped[GoalAction] = mapped_column(
+        goal_action_enum,
+        nullable=False,
+        default=GoalAction.CREATED,
+        server_default=text("'created'"),
+    )

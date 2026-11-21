@@ -20,6 +20,7 @@ abstract final class GoalQueryModel {
     'sort': q.sort.code,
     'page': q.page,
     'page_size': q.pageSize,
+    if (q.excludeCompleted) 'exclude_completed': true,
   };
 
   static Paged<Goal> pageFromJson(Map<String, dynamic> json) => Paged(

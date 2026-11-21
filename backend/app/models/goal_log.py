@@ -17,6 +17,7 @@ class GoalLog(Base):
     `changes`:
       created / deleted -> full snapshot {field: value}
       updated           -> only changed fields {field: {"old": ..., "new": ...}}
+      completed         -> the plan that reached the target {plan_from, target_date, ...}
     Values use the API's string form. Encrypted at rest (contains goal names).
     """
 

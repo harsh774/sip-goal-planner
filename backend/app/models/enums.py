@@ -49,6 +49,7 @@ class GoalAction(StrEnum):
     CREATED = "created"
     UPDATED = "updated"
     DELETED = "deleted"
+    COMPLETED = "completed"
 
 
 def _pg_enum(enum_cls: type[StrEnum], name: str) -> SAEnum:

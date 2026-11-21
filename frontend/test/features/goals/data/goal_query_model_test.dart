@@ -66,4 +66,12 @@ void main() {
     expect(summary.totalMonthlySip, 844.31);
     expect(summary.converted, isTrue);
   });
+
+  test('exclude_completed is sent only when asked for', () {
+    expect(GoalQueryModel.toQuery(const GoalQuery()).containsKey('exclude_completed'), isFalse);
+    expect(
+      GoalQueryModel.toQuery(const GoalQuery(excludeCompleted: true))['exclude_completed'],
+      isTrue,
+    );
+  });
 }

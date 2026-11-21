@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import '../../../../core/domain/currency.dart';
+import 'goal_action.dart';
 import 'goal_type.dart';
 
 /// A saved goal. Money is in hundredths of [currency]; rates are in basis points.
@@ -16,6 +17,7 @@ class Goal extends Equatable {
     required this.expectedReturnBp,
     required this.annualStepUpBp,
     required this.inflationBp,
+    this.action,
   });
 
   final String id;
@@ -28,6 +30,10 @@ class Goal extends Equatable {
   final int expectedReturnBp;
   final int annualStepUpBp;
   final int inflationBp;
+  final GoalAction? action;
+
+  /// The target date has passed with the plan reaching the target (decided by the server).
+  bool get isCompleted => action == GoalAction.completed;
 
   GoalDraft toDraft() => GoalDraft(
     name: name,
@@ -53,6 +59,7 @@ class Goal extends Equatable {
     expectedReturnBp,
     annualStepUpBp,
     inflationBp,
+    action,
   ];
 }
 

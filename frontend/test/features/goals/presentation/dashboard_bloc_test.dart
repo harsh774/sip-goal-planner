@@ -37,7 +37,7 @@ GoalsSummary _summary(Currency c, {int count = 1}) => GoalsSummary(
 void main() {
   late _MockGetGoals getGoals;
   late _MockGetSummary getSummary;
-  const soonQuery = GoalQuery(sort: GoalSort.targetDate, pageSize: 3);
+  const soonQuery = GoalQuery(sort: GoalSort.targetDate, pageSize: 3, excludeCompleted: true);
 
   setUpAll(() {
     registerFallbackValue(const GoalQuery());
@@ -59,8 +59,8 @@ void main() {
   void answerGoals(Result<Paged<Goal>> result, {Duration delay = Duration.zero}) =>
       when(() => getGoals(any())).thenAnswer((_) => Future.delayed(delay, () => result));
 
-  void answerSummary(Currency c) =>
-      when(() => getSummary(any())).thenAnswer((_) async => Success(_summary(c)));
+  void answerSummary(Currency c, {int count = 1}) =>
+      when(() => getSummary(any())).thenAnswer((_) async => Success(_summary(c, count: count)));
 
   blocTest<DashboardBloc, DashboardState>(
     'first load fetches reaching-soon, page 1 and the summary, and plans each goal locally',
@@ -104,11 +104,25 @@ void main() {
     'a user with no goals gets the empty state',
     setUp: () {
       answerGoals(Success(_page([])));
-      answerSummary(Currency.inr);
+      answerSummary(Currency.inr, count: 0);
     },
     build: build,
     act: (bloc) => bloc.add(const DashboardRequested(Currency.inr)),
     verify: (bloc) => expect(bloc.state.hasNoGoals, isTrue),
+  );
+
+  blocTest<DashboardBloc, DashboardState>(
+    'all goals completed is not the empty state: reaching-soon is just empty',
+    setUp: () {
+      answerGoals(Success(_page([])));
+      answerSummary(Currency.inr, count: 2);
+    },
+    build: build,
+    act: (bloc) => bloc.add(const DashboardRequested(Currency.inr)),
+    verify: (bloc) {
+      expect(bloc.state.reachingSoon, isEmpty);
+      expect(bloc.state.hasNoGoals, isFalse);
+    },
   );
 
   blocTest<DashboardBloc, DashboardState>(

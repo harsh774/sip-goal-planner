@@ -110,6 +110,8 @@ class GoalOut(BaseModel):
     inflation_pct: ScaledOut
     created_at: datetime
     updated_at: datetime
+    # Latest history action; `completed` once the target date has passed with the plan met.
+    action: GoalAction
 
     @classmethod
     def from_model(cls, goal: Goal) -> "GoalOut":
@@ -126,6 +128,7 @@ class GoalOut(BaseModel):
             inflation_pct=goal.inflation_bp,
             created_at=goal.created_at,
             updated_at=goal.updated_at,
+            action=goal.action,
         )
 
 

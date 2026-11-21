@@ -12,6 +12,9 @@ const _investEveryMonthText = 'Invest every month';
 const _seeFullPlanText = 'See full plan →';
 const _sameAmountEveryMonthText = 'Same amount every month';
 const _nothingMoreNeededText = 'Nothing more needed';
+const _completedText = 'Completed';
+const _targetReachedText = 'Target reached';
+const _goalCompletedText = 'Goal completed';
 
 class GoalCard extends StatelessWidget {
   const GoalCard({super.key, required this.plan, required this.onOpen, this.compact = false});
@@ -26,6 +29,7 @@ class GoalCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final goal = plan.goal;
     final c = goal.currency;
+    final completed = goal.isCompleted;
     final monthsLeft = ProjectionCalculator.monthsBetween(DateTime.now(), goal.targetDate);
     final stepLine = goal.annualStepUpBp == 0
         ? _sameAmountEveryMonthText
@@ -34,6 +38,7 @@ class GoalCard extends StatelessWidget {
 
     return ElevatedCard(
       onTap: onOpen,
+      success: completed,
       padding: .all(compact ? 20 : 24),
       child: Column(
         crossAxisAlignment: .start,
@@ -69,25 +74,35 @@ class GoalCard extends StatelessWidget {
                   ],
                 ),
               ),
+              if (completed) ...[const SizedBox(width: 8), const _CompletedBadge()],
             ],
           ),
           SizedBox(height: compact ? 12 : 20),
-          const Text(_investEveryMonthText, style: TextStyle(fontSize: 12, color: AppColors.text2)),
           Text(
-            plan.projection.onTrack
+            completed ? _targetReachedText : _investEveryMonthText,
+            style: const TextStyle(fontSize: 12, color: AppColors.text2),
+          ),
+          Text(
+            completed
+                ? MoneyFormatter.full(Scaled.toDouble(goal.targetAmount), c)
+                : plan.projection.onTrack
                 ? _nothingMoreNeededText
                 : MoneyFormatter.full(plan.levelSip, c),
-            style: TextStyle(fontSize: compact ? 24 : 28, fontWeight: .w300),
+            style: TextStyle(
+              fontSize: compact ? 24 : 28,
+              fontWeight: .w300,
+              color: completed ? AppColors.success : null,
+            ),
           ),
-          if (!compact)
+          if (!compact && !completed)
             Text(stepLine, style: const TextStyle(color: AppColors.text2, fontSize: 13)),
           const SizedBox(height: 12),
           ClipRRect(
             borderRadius: .circular(4),
             child: LinearProgressIndicator(
-              value: (plan.progressPct / 100).clamp(0, 1),
+              value: completed ? 1 : (plan.progressPct / 100).clamp(0, 1),
               backgroundColor: AppColors.border,
-              color: AppColors.gold,
+              color: completed ? AppColors.success : AppColors.gold,
               minHeight: 6,
             ),
           ),
@@ -96,12 +111,19 @@ class GoalCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Saved ${plan.progressPct.toStringAsFixed(plan.progressPct < 10 ? 1 : 0)}%',
-                  style: const TextStyle(fontSize: 12, color: AppColors.text2),
+                  completed
+                      ? _goalCompletedText
+                      : 'Saved ${plan.progressPct.toStringAsFixed(plan.progressPct < 10 ? 1 : 0)}%',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: completed ? AppColors.success : AppColors.text2,
+                  ),
                 ),
               ),
               Text(
-                '${DateFormats.duration(monthsLeft)} left',
+                completed
+                    ? DateFormats.monthYear.format(goal.targetDate)
+                    : '${DateFormats.duration(monthsLeft)} left',
                 style: const TextStyle(fontSize: 12, color: AppColors.text2),
               ),
             ],
@@ -113,6 +135,33 @@ class GoalCard extends StatelessWidget {
               child: Text(_seeFullPlanText, style: TextStyle(color: AppColors.gold)),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _CompletedBadge extends StatelessWidget {
+  const _CompletedBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const .symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.successBg,
+        borderRadius: .circular(999),
+        border: .all(color: AppColors.success.withValues(alpha: 0.6)),
+      ),
+      child: const Row(
+        mainAxisSize: .min,
+        children: [
+          Icon(Icons.check_circle, color: AppColors.success, size: 14),
+          SizedBox(width: 4),
+          Text(
+            _completedText,
+            style: TextStyle(color: AppColors.success, fontSize: 12, fontWeight: .w600),
+          ),
         ],
       ),
     );

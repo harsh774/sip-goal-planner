@@ -1,6 +1,7 @@
 import '../../../../core/domain/currency.dart';
 import '../../../../core/domain/scaled.dart';
 import '../../domain/entities/goal.dart';
+import '../../domain/entities/goal_action.dart';
 import '../../domain/entities/goal_type.dart';
 
 abstract final class GoalModel {
@@ -15,6 +16,7 @@ abstract final class GoalModel {
     expectedReturnBp: Scaled.parse(json['expected_return_pct'] as String),
     annualStepUpBp: Scaled.parse(json['annual_step_up_pct'] as String),
     inflationBp: Scaled.parse(json['inflation_pct'] as String),
+    action: GoalAction.tryFromCode(json['action'] as String?),
   );
 
   /// Body for POST (with currency) or PATCH (currency is fixed after creation).

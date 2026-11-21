@@ -74,7 +74,8 @@ final class DashboardState extends Equatable {
   final GoalQuery query;
   final Currency totalCurrency;
 
-  /// The few goals with the nearest target date, regardless of filters.
+  /// The few open goals with the nearest target date, regardless of filters.
+  /// Completed goals are left out.
   final List<GoalPlan> reachingSoon;
   final Paged<GoalPlan>? page;
   final GoalsSummary? summary;
@@ -83,7 +84,10 @@ final class DashboardState extends Equatable {
   final bool listLoading;
   final Failure? failure;
 
-  bool get hasNoGoals => status == DashboardStatus.ready && reachingSoon.isEmpty;
+  /// No goals at all. The summary counts every goal (completed ones too); reaching-soon is
+  /// only the fallback when the summary didn't load.
+  bool get hasNoGoals =>
+      status == DashboardStatus.ready && (summary?.count ?? reachingSoon.length) == 0;
 
   DashboardState copyWith({
     DashboardStatus? status,
@@ -177,7 +181,9 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
 
     final results = await withSlowNotice(
       Future.wait<Result<Object>>([
-        _getGoals(GoalQuery(sort: GoalSort.targetDate, pageSize: reachingSoonCount)),
+        _getGoals(
+          GoalQuery(sort: GoalSort.targetDate, pageSize: reachingSoonCount, excludeCompleted: true),
+        ),
         _getGoals(state.query),
         _getSummary(SummaryParams(GoalFilters.none, event.totalCurrency)),
       ]),

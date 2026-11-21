@@ -48,6 +48,7 @@ class GoalQuery extends Equatable {
     this.sort = GoalSort.newest,
     this.page = 1,
     this.pageSize = 10,
+    this.excludeCompleted = false,
   });
 
   final GoalFilters filters;
@@ -58,6 +59,9 @@ class GoalQuery extends Equatable {
   final int page;
   final int pageSize;
 
+  /// Leaves out completed goals, e.g. for "Reaching soon".
+  final bool excludeCompleted;
+
   GoalQuery copyWith({GoalFilters? filters, String? search, GoalSort? sort, int? page}) =>
       GoalQuery(
         filters: filters ?? this.filters,
@@ -65,10 +69,11 @@ class GoalQuery extends Equatable {
         sort: sort ?? this.sort,
         page: page ?? this.page,
         pageSize: pageSize,
+        excludeCompleted: excludeCompleted,
       );
 
   @override
-  List<Object?> get props => [filters, search, sort, page, pageSize];
+  List<Object?> get props => [filters, search, sort, page, pageSize, excludeCompleted];
 }
 
 class Paged<T> extends Equatable {

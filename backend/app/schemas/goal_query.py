@@ -77,6 +77,8 @@ SearchText = Annotated[str | None, BeforeValidator(_search_text)]
 class GoalListParams(GoalFilters):
     # Matches goal names containing this text, ignoring case.
     q: SearchText = None
+    # Leaves out goals whose action is `completed` (e.g. for a "reaching soon" list).
+    exclude_completed: bool = False
     page: Annotated[int, Field(ge=1)] = 1
     page_size: Annotated[int, Field(ge=1, le=100)] = 10
     sort: GoalSort = GoalSort.NEWEST

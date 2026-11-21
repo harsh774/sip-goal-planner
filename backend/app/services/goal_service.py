@@ -13,7 +13,7 @@ from app.models.enums import CURRENCY_DECIMALS, Currency, GoalAction
 from app.repositories import GoalLogRepository, GoalRepository
 from app.schemas.goal import FIELD_TO_COLUMN, MONEY_FIELDS, GoalCreate, GoalUpdate
 from app.schemas.goal_query import GoalListParams, GoalSummaryParams
-from app.schemas.money import SCALE, format_scaled
+from app.schemas.money import SCALE, format_float, format_scaled
 from app.services import fx
 from app.services.projection import Projection, ProjectionInput, project, round_money
 
@@ -87,6 +87,7 @@ class GoalService:
         self._logs = GoalLogRepository(db)
 
     def page(self, user: User, params: GoalListParams) -> GoalPage:
+        self.complete_due(user, date.today())
         if params.q:
             return self._search(user, params)
         items, total = self._goals.page_for_user(
@@ -95,6 +96,7 @@ class GoalService:
             params.sort,
             offset=(params.page - 1) * params.page_size,
             limit=params.page_size,
+            exclude_completed=params.exclude_completed,
         )
         return GoalPage(items=items, page=params.page, page_size=params.page_size, total=total)
 
@@ -104,7 +106,9 @@ class GoalService:
         needle = (params.q or "").casefold()
         matches = [
             g
-            for g in self._goals.all_matching(user.id, params, params.sort)
+            for g in self._goals.all_matching(
+                user.id, params, params.sort, params.exclude_completed
+            )
             if needle in g.name.casefold()
         ]
         start = (params.page - 1) * params.page_size
@@ -187,7 +191,43 @@ class GoalService:
         goal = self.get(user, goal_id)
         return goal, project(projection_input(goal, as_of or date.today()))
 
+    def complete_due(self, user: User, today: date) -> int:
+        """Marks goals whose target date has arrived as completed; returns how many.
+
+        The app doesn't record real payments, so a goal counts as completed when its target
+        date has passed and the plan in force (projected from the newest history row, i.e.
+        the last create or edit) reaches the target: total invested plus growth ≥ target.
+        Each completion writes a `completed` history row; all commit together.
+        """
+        completed = 0
+        for goal in self._goals.due_for_completion(user.id, today):
+            latest = self._logs.latest_for_goal(goal.id)
+            plan_from = latest.created_at.date() if latest else goal.created_at.date()
+            plan = project(projection_input(goal, plan_from)).level
+            if plan.final_balance < goal.target_amount / SCALE:
+                continue
+            self._log(
+                goal,
+                user,
+                GoalAction.COMPLETED,
+                {
+                    "plan_from": plan_from.isoformat(),
+                    "target_date": goal.target_date.isoformat(),
+                    "target_amount": format_scaled(goal.target_amount),
+                    "monthly_sip": format_float(plan.first_year_sip),
+                    "total_invested": format_float(plan.total_invested),
+                    "final_balance": format_float(plan.final_balance),
+                },
+            )
+            completed += 1
+        if completed:
+            self._db.commit()
+        else:
+            self._db.rollback()  # releases the row locks
+        return completed
+
     def _log(self, goal: Goal, user: User, action: GoalAction, changes: dict[str, Any]) -> None:
+        goal.action = action
         self._logs.add(GoalLog(goal_id=goal.id, user_id=user.id, action=action, changes=changes))
 
     def _commit(self, goal: Goal) -> Goal:
